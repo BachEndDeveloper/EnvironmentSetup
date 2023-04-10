@@ -14,4 +14,5 @@ winget install Ghisler.TotalCommander -e --silent
 
 Install-Module -Name Terminal-Icons -Repository PSGallery
 
-Write-Output "Install fonts, setup font in Terminal/PowerShell, setup powershell profile and OhMyPoshTheme"
+Write-Output "Install fonts, setup font in Terminal/PowerShell, setup powershell profile and OhMyPoshTheme
+Write-Output "Open JetBrains Toolbox and install Rider and DataGrip"

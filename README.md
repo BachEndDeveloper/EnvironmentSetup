@@ -4,7 +4,7 @@ Scripts, font and profile for setting up a new environment.
 
 ## Installing fonts
 There are 2 fonts included.
-- Cascadia Code (https://github.com/microsoft/cascadia-code)[GitHub Repo]
+- Cascadia Code (GitHub Repo)[https://github.com/microsoft/cascadia-code]
 - Caskaydia Cove Nerd Font (https://www.nerdfonts.com/)[https://www.nerdfonts.com/]
 
 In each of the folders do the follwing:

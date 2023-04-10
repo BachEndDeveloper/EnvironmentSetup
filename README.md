@@ -8,6 +8,5 @@ There are 2 fonts included.
 - Caskaydia Cove Nerd Font [https://www.nerdfonts.com/](https://www.nerdfonts.com/)
 
 In each of the folders do the follwing:
-- Mark all the font files and rights click "Install for all Users".
-
+- Mark all the font files and rights click "Install for all Users".  
 It requires admin privileges.  

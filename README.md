@@ -9,4 +9,5 @@ There are 2 fonts included.
 
 In each of the folders do the follwing:
 - Mark all the font files and rights click "Install for all Users".
+
 It requires admin privileges.  

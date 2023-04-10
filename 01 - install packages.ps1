@@ -14,5 +14,6 @@ winget install Ghisler.TotalCommander -e --silent
 
 Install-Module -Name Terminal-Icons -Repository PSGallery
 
-Write-Output "Install fonts, setup font in Terminal/PowerShell, setup powershell profile and OhMyPoshTheme
-Write-Output "Open JetBrains Toolbox and install Rider and DataGrip"
+Write-Output "Install fonts, setup font in Terminal/PowerShell, setup powershell profile and OhMyPoshTheme."
+Write-Output "Open JetBrains Toolbox and install Rider and DataGrip."
+Write-Output "In Rider: install Azure Toolkit and Rainbow Brackets. Enable new UI, set font to Cascadia Code, enable ligatures and set theme to Rider Night."

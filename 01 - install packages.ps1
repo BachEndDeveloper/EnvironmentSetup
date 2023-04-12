@@ -57,7 +57,6 @@ function InstallFont($fontToInstall)
 
 # Getting machine wide installed fonts
 $installedFonts = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
-Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
 #Install Cascadia Code font
 
 $FontFolder = "Fonts\CascadiaCode"

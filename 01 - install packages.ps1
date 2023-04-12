@@ -16,7 +16,7 @@ function InstallApplication($applicationId)
 InstallApplication("Microsoft.VisualStudioCode")
 InstallApplication("JanDeDobbeleer.OhMyPosh")
 InstallApplication("Git.Git")
-InstallApplication("JetBrains.ToolBox")
+InstallApplication("JetBrains.Toolbox")
 InstallApplication("Microsoft.DotNet.SDK.6")
 InstallApplication("Microsoft.DotNet.SDK.7")
 InstallApplication("Microsoft.PowerShell")
@@ -27,6 +27,7 @@ InstallApplication("Microsoft.Bicep")
 InstallApplication("Hashicorp.Terraform")
 InstallApplication("Postman.Postman")
 InstallApplication("Ghisler.TotalCommander")
+InstallApplication("Notepad++.Notepad++")
 
 
 if (Get-Module -ListAvailable -Name Terminal-Icons) {
@@ -57,8 +58,8 @@ function InstallFont($fontToInstall)
 
 # Getting machine wide installed fonts
 $installedFonts = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
-#Install Cascadia Code font
 
+#Install Cascadia Code font
 $FontFolder = "Fonts\CascadiaCode"
 $FontItem = Get-Item -Path $FontFolder
 $FontList = Get-ChildItem -Path "$FontItem\*" -Include ('*.fon','*.otf','*.ttc','*.ttf')
@@ -68,8 +69,7 @@ foreach ($Font in $FontList)
         InstallFont($Font)        
 }
 
-#Install Cascadia Code font
-
+#Install Caskaydia Cove Nerd font
 $FontFolder = "Fonts\CascadiaCodeNF"
 $FontItem = Get-Item -Path $FontFolder
 $FontList = Get-ChildItem -Path "$FontItem\*" -Include ('*.fon','*.otf','*.ttc','*.ttf')

@@ -46,13 +46,13 @@ function InstallFont($fontToInstall)
 {
     if (!($installedFonts -like "*" + $fontToInstall.Name + "*"))
     {
-        Write-Host 'Installing font -' $fontToInstall.BaseName
+        Write-Output ('Installing font -' + $fontToInstall.BaseName)
         Copy-Item $Font "C:\Windows\Fonts"
         New-ItemProperty -Name $fontToInstall.BaseName -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Fonts" -PropertyType string -Value $fontToInstall.name         
     }
     else 
     {
-        Write-Output $fontToInstall.Name + " already installed"
+        Write-Output ($fontToInstall.Name + " already installed")
     }
 }
 

@@ -78,3 +78,6 @@ foreach ($Font in $FontList)
 {
         InstallFont($Font)        
 }
+
+# Saving OhMyPosh theme to $HOME directory.
+Copy-Item "OhMyPosh\custom-theme-oh-my-posh.json" $HOME

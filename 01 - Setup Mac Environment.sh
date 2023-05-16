@@ -33,6 +33,7 @@ InstallOrUpdate fork --cask
 InstallOrUpdate commander-one --cask
 InstallOrUpdate rectangle --cask
 InstallOrUpdate git
+InstallOrUpdate postman --cask 
 InstallOrUpdate fig --cask
 
 # Install Fonts

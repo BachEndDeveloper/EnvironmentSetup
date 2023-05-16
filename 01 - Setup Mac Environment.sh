@@ -45,5 +45,6 @@ cp Fonts/CascadiaCodeNF/* /Library/Fonts
 cp Font/CascadiaCodeNF/* ~/Library/Fonts
 
 cp OhMyPosh/custom-theme-oh-my-posh.json $HOME
+cp Zsh/.zshrc $HOME
 
 echo "Set fonts in terminal to NF font. Set IDE fonts aswell."

@@ -33,11 +33,15 @@ InstallOrUpdate fork --cask
 InstallOrUpdate commander-one --cask
 InstallOrUpdate rectangle --cask
 InstallOrUpdate git
-InstallOrUpdate postman --cask 
 InstallOrUpdate fig --cask
 
 # Install Fonts
 ## TODO copy the fonts
 # Go into each font fold in repo and install. 
-cp * /Library/Fonts
+cp Fonts/CascadiaCode/* /Library/Fonts
+cp Fonts/CascadiaCode/* ~/Library/Fonts
 
+cp Fonts/CascadiaCodeNF/* /Library/Fonts
+cp Font/CascadiaCodeNF/* ~/Library/Fonts
+
+cp OhMyPosh/custom-theme-oh-my-posh.json $HOME

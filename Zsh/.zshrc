@@ -10,8 +10,8 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 
 export PATH=$HOME/homebrew/bin:$PATH
 
-alias code="open -a /Applications/Visual\ Studio\ Code.app"\
-alias code="o -a /Applications/Visual\ Studio\ Code.app"\
+alias code="open -a /Applications/Visual\ Studio\ Code.app"
+alias fork="open -a /Applications/Fork.app"
 
 export TERRAFORM_ROOT=$HOME/.terraform
 export PATH=$PATH:$TERRAFORM_ROOT
@@ -26,8 +26,8 @@ eval "$(oh-my-posh init zsh --config $HOME/custom-theme-oh-my-posh.json)"
 setopt list_ambiguous
 setopt auto_list
 
-# Fig post block. Keep at the bottom of this file.
-[[ -f "$HOME/.fig/shell/zshrc.post.zsh" ]] && builtin source "$HOME/.fig/shell/zshrc.post.zsh"
-
 source /Users/e144259/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /Users/e144259/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# Fig post block. Keep at the bottom of this file.
+[[ -f "$HOME/.fig/shell/zshrc.post.zsh" ]] && builtin source "$HOME/.fig/shell/zshrc.post.zsh"

@@ -28,6 +28,7 @@ InstallApplication("Hashicorp.Terraform")
 InstallApplication("Postman.Postman")
 InstallApplication("Ghisler.TotalCommander")
 InstallApplication("Notepad++.Notepad++")
+InstallApplication("GitHub.cli")
 
 
 if (Get-Module -ListAvailable -Name Terminal-Icons) {

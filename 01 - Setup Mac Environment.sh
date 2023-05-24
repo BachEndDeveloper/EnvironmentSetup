@@ -7,12 +7,10 @@ else
     brew update | echo "HOMEBREW updated!"
 fi
 
-# Get brew installed packages
-installedPackages=$(brew list)
-
 # Method for installing or upgrade brew packages.
 InstallOrUpdate() {
-    if [[ $installedPackages == *"$1"* ]] ; then
+    installed=$(brew ls --versions $1)
+    if [[ -z "$installed"  ]] ; then
         brew install $2 $1 | echo "Installed $1"
     else
         brew upgrade $1 | echo "Tried upgrading $1"

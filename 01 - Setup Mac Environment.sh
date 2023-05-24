@@ -34,6 +34,7 @@ InstallOrUpdate commander-one --cask
 InstallOrUpdate rectangle --cask
 InstallOrUpdate git
 InstallOrUpdate fig --cask
+InstallOrUpdate alt-tab --cask
 
 # Install Fonts
 ## TODO copy the fonts

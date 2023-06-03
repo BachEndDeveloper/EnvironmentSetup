@@ -40,6 +40,15 @@ else {
     Install-Module -Name Terminal-Icons -Repository PSGallery
 }
 
+if (Get-Module -ListAvailable -Name PSReadLine) {
+    Write-Host "PSReadLine module is already installed"
+} 
+else {
+    Write-Host "Installing PSReadLine"
+    Install-Module -Name PSReadLine -Repository PSGallery
+}
+
+
 Write-Output "Install fonts, setup font in Terminal/PowerShell, setup powershell profile and OhMyPoshTheme."
 Write-Output "Open JetBrains Toolbox and install Rider and DataGrip."
 Write-Output "In Rider: install Azure Toolkit and Rainbow Brackets. Enable new UI, set font to Cascadia Code, enable ligatures and set theme to Rider Night."
@@ -81,5 +90,44 @@ foreach ($Font in $FontList)
         InstallFont($Font)        
 }
 
+#Install JetBrains Mono font
+$FontFolder = "Fonts\JetBrainsMono"
+$FontItem = Get-Item -Path $FontFolder
+$FontList = Get-ChildItem -Path "$FontItem\*" -Include ('*.fon','*.otf','*.ttc','*.ttf')
+
+foreach ($Font in $FontList) 
+{
+        InstallFont($Font)        
+}
+
+#Install JetBrains Mono Nerd font
+$FontFolder = "Fonts\JetBrainsMonoNF"
+$FontItem = Get-Item -Path $FontFolder
+$FontList = Get-ChildItem -Path "$FontItem\*" -Include ('*.fon','*.otf','*.ttc','*.ttf')
+
+foreach ($Font in $FontList) 
+{
+        InstallFont($Font)        
+}
+
 # Saving OhMyPosh theme to $HOME directory.
-Copy-Item "OhMyPosh\custom-theme-oh-my-posh.json" $HOME
+if (-NOT (Test-Path "$HOME\custom-theme-oh-my-posh.json"))
+{
+    Copy-Item "OhMyPosh\custom-theme-oh-my-posh.json" $HOME
+    Write-Output "custom-theme-oh-my-posh.json was copied to HOME"
+}
+
+
+if (-NOT (Test-Path $PROFILE))
+{
+    New-Item -path $PROFILE -type File -force
+    Write-Output "PowerShell PROFILE was created"
+}
+
+if ([String]::IsNullOrWhiteSpace((Get-content $PROFILE)))
+{
+    Add-Content $PROFILE -Value "`r`noh-my-posh init pwsh --config (`"$HOME\custom-theme-oh-my-posh.json`") | Invoke-Expression"
+    Add-Content $PROFILE -Value "Import-Module -Name Terminal-Icons"
+
+    Write-Output "Added content to PowerShell PROFILE file"
+}

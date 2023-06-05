@@ -33,6 +33,7 @@ InstallOrUpdate rectangle --cask
 InstallOrUpdate git
 InstallOrUpdate fig --cask
 InstallOrUpdate alt-tab --cask
+InstallOrUpdate exa
 
 # Install Fonts
 ## TODO copy the fonts

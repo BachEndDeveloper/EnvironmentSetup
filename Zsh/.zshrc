@@ -26,8 +26,8 @@ eval "$(oh-my-posh init zsh --config $HOME/custom-theme-oh-my-posh.json)"
 setopt list_ambiguous
 setopt auto_list
 
-source /Users/e144259/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-source /Users/e144259/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source $HOME/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source $HOME/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Fig post block. Keep at the bottom of this file.
 [[ -f "$HOME/.fig/shell/zshrc.post.zsh" ]] && builtin source "$HOME/.fig/shell/zshrc.post.zsh"

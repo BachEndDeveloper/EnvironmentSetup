@@ -30,6 +30,7 @@ InstallApplication("Postman.Postman")
 InstallApplication("Ghisler.TotalCommander")
 InstallApplication("Notepad++.Notepad++")
 InstallApplication("GitHub.cli")
+InstallApplication("Microsoft.Azd")
 
 
 if (Get-Module -ListAvailable -Name Terminal-Icons) {

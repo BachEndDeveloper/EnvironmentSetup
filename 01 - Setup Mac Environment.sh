@@ -33,7 +33,7 @@ InstallOrUpdate rectangle --cask
 InstallOrUpdate git
 InstallOrUpdate fig --cask
 InstallOrUpdate alt-tab --cask
-InstallOrUpdate exa
+InstallOrUpdate eza
 
 brew tap azure/functions
 InstallOrUpdate azure-functions-core-tools@4

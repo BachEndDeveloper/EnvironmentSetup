@@ -1,9 +1,23 @@
 {
+    "editor.accessibilitySupport": "off",
     "security.workspace.trust.untrustedFiles": "open",
-    "editor.fontFamily": "'Cascadia Code', Consolas, 'Courier New', monospace",
+    "editor.fontFamily": "'Cascadia Code', Consolas, 'JetBrains Mono', 'Courier New', monospace",
     "editor.autoIndent": "brackets",
     "editor.fontLigatures": true,
+    "editor.rulers": [
+        120
+    ],
+    "git.enableSmartCommit": true,
+    "powershell.promptToUpdatePowerShell": false,
+      "terminal.integrated.env.osx": {
+    "FIG_NEW_SESSION": "1"
+      },
+      "window.zoomLevel": 1,
+      "workbench.colorCustomizations": {
+        "editorRuler.foreground": "#ff0000"
+      },
     "editor.bracketPairColorization.enabled": true,
-    "workbench.colorTheme": "Visual Studio 2019 Dark",
-    "terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font",
+    "workbench.colorTheme": "Default Dark Modern",
+    "workbench.startupEditor": "none",
+    "terminal.integrated.fontFamily": "'CaskaydiaCove Nerd Font', 'JetBrainsMono Nerd Font'",
 }

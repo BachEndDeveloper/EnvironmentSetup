@@ -31,6 +31,7 @@ InstallApplication("Ghisler.TotalCommander")
 InstallApplication("Notepad++.Notepad++")
 InstallApplication("GitHub.cli")
 InstallApplication("Microsoft.Azd")
+InstallApplication("Mozilla.Firefox")
 
 
 if (Get-Module -ListAvailable -Name Terminal-Icons) {

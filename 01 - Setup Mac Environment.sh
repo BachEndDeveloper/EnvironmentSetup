@@ -42,6 +42,9 @@ InstallOrUpdate azure-functions-core-tools@4
 # if upgrading on a machine that has 2.x or 3.x installed:
 brew link --overwrite azure-functions-core-tools@4
 
+brew tap azure/azd
+InstallOrUpdate azd
+
 # Install Fonts
 ## TODO copy the fonts
 # Go into each font fold in repo and install. 

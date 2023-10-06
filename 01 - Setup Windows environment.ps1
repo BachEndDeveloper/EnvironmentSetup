@@ -42,6 +42,8 @@ else {
     Install-Module -Name Terminal-Icons -Repository PSGallery
 }
 
+Install-Module posh-git -Scope CurrentUser -Force
+
 if (Get-Module -ListAvailable -Name PSReadLine) {
     Write-Host "PSReadLine module is already installed"
 } 

@@ -33,6 +33,7 @@ InstallApplication("GitHub.cli")
 InstallApplication("Microsoft.Azd")
 InstallApplication("Mozilla.Firefox")
 
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Confirm
 
 if (Get-Module -ListAvailable -Name Terminal-Icons) {
     Write-Host "Terminal-Icons module is already installed"

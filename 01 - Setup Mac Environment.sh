@@ -1,4 +1,6 @@
 # Setup Mac
+# WORK IN PROGRESS
+
 # Install Homebrew
 which -s brew
 if [[ $? != 0 ]] ; then

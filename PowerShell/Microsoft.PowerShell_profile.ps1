@@ -1,3 +1,4 @@
+$env:POSH_GIT_ENABLED = $true
 oh-my-posh init pwsh --config "C:\Users\e144259\OneDrive - Mastercard\custom-theme-oh-my-posh.rev3.json" | Invoke-Expression
 Import-Module -Name Terminal-Icons
 #Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete

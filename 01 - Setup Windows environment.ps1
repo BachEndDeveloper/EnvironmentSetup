@@ -136,3 +136,13 @@ if ([String]::IsNullOrWhiteSpace((Get-content $PROFILE)))
 
     Write-Output "Added content to PowerShell PROFILE file"
 }
+
+$Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")  
+
+git config --global http.sslBackend schannel
+
+$gitUsername = Read-Host -Prompt 'Input your default Git username'
+$gitEmail = Read-Host -Prompt 'Input yout default Git email'
+
+git config --global user.name $gitUsername
+git config --global user.email $gitEmail

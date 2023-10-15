@@ -32,6 +32,7 @@ InstallApplication("Notepad++.Notepad++")
 InstallApplication("GitHub.cli")
 InstallApplication("Microsoft.Azd")
 InstallApplication("Mozilla.Firefox")
+InstallApplication("Brave.Brave")
 
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Confirm
 

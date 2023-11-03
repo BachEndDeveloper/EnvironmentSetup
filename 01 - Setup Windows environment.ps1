@@ -140,10 +140,13 @@ if ([String]::IsNullOrWhiteSpace((Get-content $PROFILE)))
 
 $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")  
 
-git config --global http.sslBackend schannel
+#git config --global http.sslBackend schannel
 
 $gitUsername = Read-Host -Prompt 'Input your default Git username'
 $gitEmail = Read-Host -Prompt 'Input yout default Git email'
 
 git config --global user.name $gitUsername
 git config --global user.email $gitEmail
+
+Copy-Item -Path "VSCode\settings.json" -Destination "$env:AppData\Code\User\"
+

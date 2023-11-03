@@ -58,3 +58,11 @@ cp OhMyPosh/custom-theme-oh-my-posh.json $HOME
 cp Zsh/.zshrc $HOME
 
 echo "Set fonts in terminal to NF font. Set IDE fonts aswell."
+
+cp VSCode/settings.json $HOME/.config/code/User/
+
+cp iterm2/com.googlecode.iterm2.plist.xml iterm2/com.googlecom.iterm2.plist
+plutil -convert binary1 iterm2/com.googlecode.iterm2.plist
+
+mv ~/Library/Preferences/com.googlecode.iterm2.plist ~/Library/Preferences/com.googlecode.iterm2.plist.backup
+mv iterm2/com.googlecode.iterm2.plist ~/Library/Preferences/com.googlecode.iterm2.plist

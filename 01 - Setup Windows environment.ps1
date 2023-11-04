@@ -124,19 +124,18 @@ if (-NOT (Test-Path "$HOME\custom-theme-oh-my-posh.json"))
 }
 
 
-if (-NOT (Test-Path $PROFILE))
+if (Test-Path $PROFILE)
 {
-    New-Item -path $PROFILE -type File -force
-    Write-Output "PowerShell PROFILE was created"
+    Remove-Item -Path $PROFILE
+    # New-Item -path $PROFILE -type File -force
+    # Write-Output "PowerShell PROFILE was created"
 }
 
-if ([String]::IsNullOrWhiteSpace((Get-content $PROFILE)))
-{
-    Add-Content $PROFILE -Value "`r`noh-my-posh init pwsh --config (`"$HOME\custom-theme-oh-my-posh.json`") | Invoke-Expression"
-    Add-Content $PROFILE -Value "Import-Module -Name Terminal-Icons"
+    # Add-Content $PROFILE -Value "`r`noh-my-posh init pwsh --config (`"$HOME\custom-theme-oh-my-posh.json`") | Invoke-Expression"
+    # Add-Content $PROFILE -Value "Import-Module -Name Terminal-Icons"
+Copy-Item -Path ".\Powershell\Microsoft.PowerShell_profile.ps1" -Destination $PROFILE
 
-    Write-Output "Added content to PowerShell PROFILE file"
-}
+Write-Output "Added new PowerShell PROFILE file"
 
 $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")  
 

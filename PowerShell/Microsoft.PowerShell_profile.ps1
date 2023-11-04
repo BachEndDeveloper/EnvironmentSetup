@@ -1,4 +1,4 @@
-oh-my-posh init pwsh --config "C:\Users\e144259\OneDrive - Mastercard\custom-theme-oh-my-posh.rev3.json" | Invoke-Expression
+oh-my-posh init pwsh --config "$HOME\custom-theme-oh-my-posh.json" | Invoke-Expression
 Import-Module -Name Terminal-Icons
 
 $env:POSH_GIT_ENABLED = $true

@@ -156,11 +156,12 @@ if ($setupQmk -eq "y")
 {
     InstallApplication("QMK.QMKToolbox")
 
-    Write-Output "Downloading QMK MSYS and starting installer"
-    
     $qmkSavePath = "$HOME\Downloads\QMK_MSYS.exe"
     $qmkMsysVersion = "1.7.2";
     $qmkMsysUrl = "https://github.com/qmk/qmk_distro_msys/releases/download/$qmkMsysVersion/QMK_MSYS.exe"
+    
+    Write-Output "Downloading QMK MSYS version $qmkMsysVersion and starting installer"
+    
     Invoke-Webrequest -Uri $qmkMsysUrl -OutFile $qmkSavePath
 
     if (Test-Path $qmkSavePath)

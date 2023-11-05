@@ -149,3 +149,23 @@ git config --global user.email $gitEmail
 
 Copy-Item -Path "VSCode\settings.json" -Destination "$env:AppData\Code\User\"
 
+
+$setupQmk = Read-Host -Prompt "Should I setup QMK and QMK MSYS? (y/n)"
+
+if ($setupQmk -eq "y")
+{
+    InstallApplication("QMK.QMKToolbox")
+    
+    $qmkSavePath = "$HOME\Downloads\QMK_MSYS.exe"
+    $qmkMsysVersion = "1.7.2";
+    $qmkMsysUrl = "https://github.com/qmk/qmk_distro_msys/releases/download/$qmkMsysVersion/QMK_MSYS.exe"
+    Invoke-Webrequest -Uri $qmkMsysUrl -OutFile $qmkSavePath
+
+    if (Test-Path $qmkSavePath)
+    {
+        Start-Process $qmkSavePath -NoNewWindow -Wait
+    }
+}
+
+
+

@@ -147,7 +147,11 @@ $gitEmail = Read-Host -Prompt 'Input yout default Git email'
 git config --global user.name $gitUsername
 git config --global user.email $gitEmail
 
-Copy-Item -Path "VSCode\settings.json" -Destination "$env:AppData\Code\User\"
+Write-Output "Setting up Windows Terminal local settings"
+
+Copy-Item -Path ".\WindowsTerminal\settings.json" -Destination "$env:USERPROFILE\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState"
+
+Copy-Item -Path ".\VSCode\settings.json" -Destination "$env:AppData\Code\User\"
 
 
 $setupQmk = Read-Host -Prompt "Should I setup QMK and QMK MSYS? (y/n)"

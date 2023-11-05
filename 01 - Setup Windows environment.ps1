@@ -155,6 +155,8 @@ $setupQmk = Read-Host -Prompt "Should I setup QMK and QMK MSYS? (y/n)"
 if ($setupQmk -eq "y")
 {
     InstallApplication("QMK.QMKToolbox")
+
+    Write-Output "Downloading QMK MSYS and starting installer"
     
     $qmkSavePath = "$HOME\Downloads\QMK_MSYS.exe"
     $qmkMsysVersion = "1.7.2";

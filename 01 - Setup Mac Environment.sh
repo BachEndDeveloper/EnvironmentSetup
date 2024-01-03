@@ -52,6 +52,9 @@ InstallOrUpdate azd
 brew tap azure/bicep
 InstallOrUpdate bicep
 
+# Install DotNet SDK
+curl -SSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel LTS
+
 # Install Fonts
 ## TODO copy the fonts
 # Go into each font fold in repo and install. 

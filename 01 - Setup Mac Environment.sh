@@ -5,6 +5,7 @@
 which -s brew
 if [[ $? != 0 ]] ; then
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    PATH=$PATH:/opt/homebrew/bin
 else
     brew update | echo "HOMEBREW updated!"
 fi

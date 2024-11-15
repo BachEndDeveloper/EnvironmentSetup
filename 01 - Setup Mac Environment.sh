@@ -10,13 +10,16 @@ else
     brew update | echo "HOMEBREW updated!"
 fi
 
+brew upgrade
 # Method for installing or upgrade brew packages.
 InstallOrUpdate() {
-    installed=$(brew ls --versions $1)
+    echo "Checking if $1 is installed. (Is a cask: $2)"
+    installed=$(brew ls $1)
     if [[ -z "$installed"  ]] ; then
+        echo "Installing $1"
         brew install $2 $1 | echo "Installed $1"
-    else
-        brew upgrade $1 | echo "Tried upgrading $1"
+    else 
+        echo "$1 is already installed"
     fi
 }
 
@@ -32,9 +35,9 @@ InstallOrUpdate azure-cli
 InstallOrUpdate jandedobbeleer/oh-my-posh/oh-my-posh
 InstallOrUpdate fork --cask
 InstallOrUpdate commander-one --cask
-InstallOrUpdate rectangle --cask
+InstallOrUpdate rectangle-pro --cask
 InstallOrUpdate git
-InstallOrUpdate fig --cask
+InstallOrUpdate amazon-q --cask
 InstallOrUpdate alt-tab --cask
 InstallOrUpdate eza
 InstallOrUpdate bartender --cask
@@ -53,26 +56,26 @@ brew tap azure/bicep
 InstallOrUpdate bicep
 
 # Install DotNet SDK
-curl -SSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel LTS
+# curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel LTS
 
 # Install Fonts
 ## TODO copy the fonts
 # Go into each font fold in repo and install. 
-cp Fonts/CascadiaCode/* /Library/Fonts
-cp Fonts/CascadiaCode/* ~/Library/Fonts
+# cp Fonts/CascadiaCode/* /Library/Fonts
+# cp Fonts/CascadiaCode/* ~/Library/Fonts
 
-cp Fonts/CascadiaCodeNF/* /Library/Fonts
-cp Font/CascadiaCodeNF/* ~/Library/Fonts
+# cp Fonts/CascadiaCodeNF/* /Library/Fonts
+# cp Fonts/CascadiaCodeNF/* ~/Library/Fonts
 
-cp OhMyPosh/custom-theme-oh-my-posh.json $HOME
-cp Zsh/.zshrc $HOME
+# cp OhMyPosh/custom-theme-oh-my-posh.json $HOME
+# cp Zsh/.zshrc $HOME
 
-echo "Set fonts in terminal to NF font. Set IDE fonts aswell."
+# echo "Set fonts in terminal to NF font. Set IDE fonts aswell."
 
-cp VSCode/settings.json $HOME/.config/code/User/
+# cp VSCode/settings.json $HOME/.config/code/User/
 
-cp iterm2/com.googlecode.iterm2.plist.xml iterm2/com.googlecom.iterm2.plist
-plutil -convert binary1 iterm2/com.googlecode.iterm2.plist
+# cp iterm2/com.googlecode.iterm2.plist.xml iterm2/com.googlecom.iterm2.plist
+# plutil -convert binary1 iterm2/com.googlecode.iterm2.plist
 
-mv ~/Library/Preferences/com.googlecode.iterm2.plist ~/Library/Preferences/com.googlecode.iterm2.plist.backup
-mv iterm2/com.googlecode.iterm2.plist ~/Library/Preferences/com.googlecode.iterm2.plist
+# mv ~/Library/Preferences/com.googlecode.iterm2.plist ~/Library/Preferences/com.googlecode.iterm2.plist.backup
+# mv iterm2/com.googlecode.iterm2.plist ~/Library/Preferences/com.googlecode.iterm2.plist

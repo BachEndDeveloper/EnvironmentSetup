@@ -56,7 +56,7 @@ brew tap azure/bicep
 InstallOrUpdate bicep
 
 # Install DotNet SDK
-# curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel LTS
+# curl -sSL https://dot.net/v1/dotnet-install.sh | sh -s -- --channel LTS
 
 # Install Fonts
 ## TODO copy the fonts

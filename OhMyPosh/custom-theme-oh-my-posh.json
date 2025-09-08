@@ -21,9 +21,6 @@
         },
         {
           "properties": {
-            "branch_ahead_icon": "\ufc35",
-            "branch_behind_icon": "\ufc2c",
-            "branch_identical_icon": "\uf6fb",
             "branch_max_length": 25,
             "cache_duration": "none",
             "fetch_stash_count": true,

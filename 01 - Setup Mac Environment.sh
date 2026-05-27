@@ -1,5 +1,4 @@
 # Setup Mac
-# WORK IN PROGRESS
 
 # Install Homebrew
 which -s brew

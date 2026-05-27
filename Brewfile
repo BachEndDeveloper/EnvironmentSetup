@@ -46,7 +46,7 @@ cask "fork"
 cask "commander-one"
 cask "rectangle-pro"
 cask "alt-tab"
-cask "bartender"
+cask "hiddenbar"
 
 # --- Fonts ---
 cask "font-monaspace"             # Monaspace Neon (editors)

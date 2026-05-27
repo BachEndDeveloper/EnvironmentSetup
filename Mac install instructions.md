@@ -35,7 +35,8 @@ find <path to environment setup folder> -type f -exec chmod 755 {} \;
 
 | Package | Package | Package | Package | Package | Package |
 |---|---|---|---|---|---|
-| alt-tab | chatgpt | commander-one | Çocker-desktop | datagrip | drawio |
-| fork | ghostty | github | microsoft-auto-update | microsoft-excel | microsoft-onenote |
-| microsoft-outlook | microsoft-powerpoint | microsoft-teams | microsoft-word | onedrive | rectangle-pro |
-| rider | visual-studio-code |  |  |  |  |
+| alt-tab | bartender | chatgpt | claude | commander-one | datagrip |
+| docker-desktop | drawio | font-monaspace | font-monaspace-nerd-font | fork | ghostty |
+| github | google-chrome | hiddenbar | microsoft-auto-update | microsoft-edge | microsoft-excel |
+| microsoft-onenote | microsoft-outlook | microsoft-powerpoint | microsoft-teams | microsoft-word | onedrive |
+| rectangle-pro | rider | visual-studio-code |  |  |  |

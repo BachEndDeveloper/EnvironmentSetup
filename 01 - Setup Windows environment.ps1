@@ -57,7 +57,7 @@ else {
 
 Write-Output "Install fonts, setup font in Terminal/PowerShell, setup powershell profile and OhMyPoshTheme."
 Write-Output "Open JetBrains Toolbox and install Rider and DataGrip."
-Write-Output "In Rider: install Azure Toolkit and Rainbow Brackets. Enable new UI, set font to Cascadia Code, enable ligatures and set theme to Rider Night."
+Write-Output "In Rider: install Azure Toolkit and Rainbow Brackets. Enable new UI, set editor font to Monaspace Neon (ligatures on) and terminal font to MonaspiceNe Nerd Font, set theme to Rider Night. (Monaspace is not yet bundled for Windows - install it manually.)"
 
 function InstallFont($fontToInstall)
 {

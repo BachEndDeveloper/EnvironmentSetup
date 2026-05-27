@@ -1,0 +1,7 @@
+# Ghostty configuration
+# Docs: https://ghostty.org/docs/config
+
+# Terminal font: Monaspace Neon, Nerd Font patched (provides icons/glyphs
+# for eza, oh-my-posh, etc.). Install via: brew install --cask font-monaspace-nerd-font
+font-family = MonaspiceNe Nerd Font
+font-size = 14

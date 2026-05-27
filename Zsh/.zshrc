@@ -6,10 +6,9 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # PATH additions
-export PATH="/usr/local/git/bin:$PATH"
 export PATH="$HOME/.dotnet/tools:$PATH"
 export PATH="$HOME/.aspire/bin:$PATH"
-export DOTNET_ROOT="$HOMEBREW_PREFIX/opt/dotnet/libexec"
+export DOTNET_ROOT="/usr/local/share/dotnet"
 
 # History
 HISTFILE="$HOME/.zsh_history"
@@ -42,11 +41,9 @@ setopt auto_list
 
 # Plugins
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # fzf
-source /opt/homebrew/opt/fzf/shell/key-bindings.zsh
-source /opt/homebrew/opt/fzf/shell/completion.zsh
+source <(fzf --zsh)
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
 export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
 
@@ -64,5 +61,5 @@ _dotnet_zsh_complete() {
 }
 compdef _dotnet_zsh_complete dotnet
 
-# opencode
-export PATH="$HOME/.opencode/bin:$PATH"
+# Syntax highlighting (must be sourced last, after all widgets/keybindings)
+source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh

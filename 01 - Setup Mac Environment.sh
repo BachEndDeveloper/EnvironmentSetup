@@ -46,7 +46,7 @@ InstallOrUpdate rectangle-pro --cask
 InstallOrUpdate git
 InstallOrUpdate alt-tab --cask
 InstallOrUpdate eza
-# CLI tools: shell (.zshrc) uses bat/fzf/fd/zoxide; Neovim/LazyVim needs neovim/ripgrep/fd; yazi is a terminal file manager
+# CLI tools: shell (.zshrc) uses bat/fzf/fd/zoxide; Neovim/LazyVim needs neovim/ripgrep/fd; yazi is a file manager; uv manages Python
 InstallOrUpdate bat
 InstallOrUpdate fzf
 InstallOrUpdate fd
@@ -54,6 +54,7 @@ InstallOrUpdate zoxide
 InstallOrUpdate ripgrep
 InstallOrUpdate neovim
 InstallOrUpdate yazi
+InstallOrUpdate uv
 InstallOrUpdate bartender --cask
 
 brew tap azure/functions
@@ -69,8 +70,30 @@ InstallOrUpdate azd
 brew tap azure/bicep
 InstallOrUpdate bicep
 
-# Install DotNet SDK
-# curl -sSL https://dot.net/v1/dotnet-install.sh | sh -s -- --channel LTS
+# --- Languages & runtimes ---
+
+# Node via nvm, defaulting to LTS (.zshrc loads nvm; install nvm here if missing).
+export NVM_DIR="$HOME/.nvm"
+if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    echo "Installing nvm"
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+fi
+. "$NVM_DIR/nvm.sh"
+nvm install --lts
+nvm alias default 'lts/*'
+
+# Python managed by uv (uv installed as a brew formula above). Installs the latest stable CPython.
+uv python install
+
+# .NET SDK is installed manually via the official installer (not Homebrew) - see README "## .NET / C#".
+# The Aspire CLI needs the .NET SDK, so only install it once dotnet is on PATH.
+if command -v dotnet >/dev/null 2>&1; then
+    # .NET Aspire CLI -> installs to ~/.aspire/bin (already on PATH via .zshrc).
+    curl -sSL https://aspire.dev/install.sh | bash
+else
+    echo "WARNING: .NET SDK not found - skipping Aspire CLI."
+    echo "         Install .NET (see README '## .NET / C#'), then re-run this script."
+fi
 
 # Fonts are installed via Homebrew casks above (font-monaspace, font-monaspace-nerd-font).
 # Editor font: "Monaspace Neon"  |  Terminal font: "MonaspiceNe Nerd Font"

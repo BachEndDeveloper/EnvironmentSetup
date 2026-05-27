@@ -22,10 +22,12 @@ cd EnvironmentSetup
 bash "01 - Setup Mac Environment.sh"
 ```
 
-This installs the Homebrew formulae, casks and fonts; copies the zsh / Oh My Posh / Ghostty /
+This installs the Homebrew formulae, casks and fonts; sets up the language runtimes (Node via
+nvm/LTS, a uv-managed Python, the .NET Aspire CLI); copies the zsh / Oh My Posh / Ghostty /
 VS Code / Claude Code configs into place (backing up any existing `~/.zshrc` and
-`~/.claude/settings.json` first); and bootstraps LazyVim into `~/.config/nvim`. Finish by setting
-the Rider fonts manually (see [Rider](#rider-manual)).
+`~/.claude/settings.json` first); and bootstraps LazyVim into `~/.config/nvim`. The .NET SDK is a
+manual step (see **.NET / C#** below). Finish by setting the Rider fonts manually
+(see [Rider](#rider-manual)).
 
 ### Windows
 
@@ -75,6 +77,37 @@ the Windows installer — install it manually from the Monaspace releases or via
   [LazyVim](https://www.lazyvim.org/) starter into `~/.config/nvim` (only if no config exists yet).
 - **Claude Code:** my `~/.claude` customizations (settings + statusline footer) are captured in
   `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`.
+
+## Languages & runtimes
+
+The macOS script installs and configures these automatically:
+
+- **Node** — via [nvm](https://github.com/nvm-sh/nvm), defaulting to the latest **LTS**
+  (`nvm install --lts`). Install a Current release on demand with `nvm install node`.
+- **Python** — managed by [uv](https://docs.astral.sh/uv/) (installed as a Homebrew formula).
+  `uv python install` provides the latest stable CPython. Pin per project with a `.python-version`
+  file or `requires-python`; `uv run` / `uv sync` auto-download the matching version. uv replaces
+  pyenv, pip, venv and pipx (use `uv tool install` for global tools).
+- **.NET Aspire CLI** — installed via `aspire.dev/install.sh` into `~/.aspire/bin` (already on
+  `PATH`). It needs the .NET SDK, so **install .NET first** — the setup script skips Aspire (with a
+  warning) if `dotnet` isn't on `PATH`; just re-run setup after installing .NET.
+
+### .NET / C#
+
+Install the .NET SDK with the **official installer** (not Homebrew), so it lands at the standard
+`/usr/local/share/dotnet` location:
+
+1. Download the latest **LTS** SDK installer (`.pkg`, Arm64 for Apple Silicon) from
+   <https://dotnet.microsoft.com/download/dotnet>.
+2. Run the `.pkg` and follow the prompts.
+3. Verify with `dotnet --version` and `dotnet --list-sdks`.
+
+The `.zshrc` sets `DOTNET_ROOT=/usr/local/share/dotnet` (the official installer's path) and adds
+`~/.dotnet/tools` to `PATH` for global tools. .NET releases on even-numbered majors (8, 10, …) are
+LTS; odd-numbered (9, 11, …) are STS — prefer LTS unless you need the newer one.
+
+Do this **before** running the setup script so the Aspire CLI step can find `dotnet` (otherwise the
+script skips Aspire and you re-run setup afterwards).
 
 ## Rider (manual)
 Rider settings aren't portable, so set these by hand after install:

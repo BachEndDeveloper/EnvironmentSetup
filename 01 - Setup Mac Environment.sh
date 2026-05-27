@@ -11,64 +11,12 @@ else
     echo "HOMEBREW updated!"
 fi
 
-brew upgrade
-# Method for installing or upgrade brew packages.
-InstallOrUpdate() {
-    echo "Checking if $1 is installed. (Is a cask: $2)"
-    installed=$(brew ls $1)
-    if [[ -z "$installed"  ]] ; then
-        echo "Installing $1"
-        brew install $2 $1
-        echo "Installed $1"
-    else 
-        echo "$1 is already installed"
-    fi
-}
+# Install / upgrade all declared Homebrew taps, formulae, casks and fonts (see Brewfile).
+# brew bundle is idempotent and reports failures loudly; --upgrade also updates what's installed.
+brew bundle --upgrade --file="Brewfile"
 
-# Packages to install
-InstallOrUpdate rider --cask
-InstallOrUpdate datagrip --cask
-InstallOrUpdate visual-studio-code --cask
-InstallOrUpdate ghostty --cask
-
-# Fonts: Monaspace Neon for editors, Monaspice Neon Nerd Font for terminals
-InstallOrUpdate font-monaspace --cask
-InstallOrUpdate font-monaspace-nerd-font --cask
-InstallOrUpdate zsh
-InstallOrUpdate zsh-syntax-highlighting
-InstallOrUpdate zsh-autosuggestions
-InstallOrUpdate terraform
-InstallOrUpdate azure-cli
-InstallOrUpdate jandedobbeleer/oh-my-posh/oh-my-posh
-InstallOrUpdate fork --cask
-InstallOrUpdate commander-one --cask
-InstallOrUpdate rectangle-pro --cask
-InstallOrUpdate git
-InstallOrUpdate alt-tab --cask
-InstallOrUpdate eza
-# CLI tools: shell (.zshrc) uses bat/fzf/fd/zoxide; Neovim/LazyVim needs neovim/ripgrep/fd; yazi is a file manager; uv manages Python
-InstallOrUpdate bat
-InstallOrUpdate fzf
-InstallOrUpdate fd
-InstallOrUpdate zoxide
-InstallOrUpdate ripgrep
-InstallOrUpdate neovim
-InstallOrUpdate yazi
-InstallOrUpdate uv
-InstallOrUpdate bartender --cask
-
-brew tap azure/functions
-InstallOrUpdate azure-functions-core-tools@4
-# if upgrading on a machine that has 2.x or 3.x installed:
-brew link --overwrite azure-functions-core-tools@4
-
-# Install Azure Developer CLI
-brew tap azure/azd
-InstallOrUpdate azd
-
-# Install bicep CLI
-brew tap azure/bicep
-InstallOrUpdate bicep
+# azure-functions-core-tools@4: ensure it's linked even when upgrading from an older major.
+brew link --overwrite --quiet azure-functions-core-tools@4 2>/dev/null || true
 
 # --- Languages & runtimes ---
 
@@ -82,7 +30,7 @@ fi
 nvm install --lts
 nvm alias default 'lts/*'
 
-# Python managed by uv (uv installed as a brew formula above). Installs the latest stable CPython.
+# Python managed by uv (uv installed via the Brewfile above). Installs the latest stable CPython.
 uv python install
 
 # .NET SDK is installed manually via the official installer (not Homebrew) - see README "## .NET / C#".
@@ -95,7 +43,7 @@ else
     echo "         Install .NET (see README '## .NET / C#'), then re-run this script."
 fi
 
-# Fonts are installed via Homebrew casks above (font-monaspace, font-monaspace-nerd-font).
+# Fonts are installed via the Brewfile (font-monaspace, font-monaspace-nerd-font).
 # Editor font: "Monaspace Neon"  |  Terminal font: "MonaspiceNe Nerd Font"
 
 # Copy Oh My Posh theme and zsh config (back up any existing .zshrc first)

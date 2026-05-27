@@ -22,12 +22,16 @@ cd EnvironmentSetup
 bash "01 - Setup Mac Environment.sh"
 ```
 
-This installs the Homebrew formulae, casks and fonts; sets up the language runtimes (Node via
-nvm/LTS, a uv-managed Python, the .NET Aspire CLI); copies the zsh / Oh My Posh / Ghostty /
-VS Code / Claude Code configs into place (backing up any existing `~/.zshrc` and
-`~/.claude/settings.json` first); and bootstraps LazyVim into `~/.config/nvim`. The .NET SDK is a
-manual step (see **.NET / C#** below). Finish by setting the Rider fonts manually
-(see [Rider](#rider-manual)).
+This runs `brew bundle` against the [`Brewfile`](Brewfile) to install/upgrade all formulae, casks
+and fonts; sets up the language runtimes (Node via nvm/LTS, a uv-managed Python, the .NET Aspire
+CLI); copies the zsh / Oh My Posh / Ghostty / VS Code / Claude Code configs into place (backing up
+any existing `~/.zshrc` and `~/.claude/settings.json` first); and bootstraps LazyVim into
+`~/.config/nvim`. The .NET SDK is a manual step (see **.NET / C#** below). Finish by setting the
+Rider fonts manually (see [Rider](#rider-manual)).
+
+Homebrew packages are declared in the [`Brewfile`](Brewfile) (the source of truth). Add/remove
+entries there; regenerate it from a machine with `brew bundle dump --force --file=Brewfile`, or list
+undeclared installs with `brew bundle cleanup --file=Brewfile`.
 
 ### Windows
 

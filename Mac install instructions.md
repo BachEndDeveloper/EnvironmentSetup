@@ -12,6 +12,10 @@ find <path to environment setup folder> -type f -exec chmod 755 {} \;
 ````
 # Installed Homebrew Packages
 
+> The setup script installs from the [`Brewfile`](Brewfile), which is the source of truth.
+> The tables below are a point-in-time snapshot of a configured machine (`brew leaves` /
+> `brew list --cask`) and may include extras the script doesn't manage.
+
 ## Formulae
 
 | Package | Package | Package | Package | Package | Package |

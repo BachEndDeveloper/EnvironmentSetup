@@ -28,6 +28,12 @@ brew "fd"                 # find replacement / fzf + LazyVim
 brew "ripgrep"            # grep replacement / LazyVim + fzf
 brew "zoxide"             # smarter cd (.zshrc integration)
 brew "yazi"               # terminal file manager
+brew "poppler"            # Yazi PDF preview (pdftoppm)
+brew "resvg"              # Yazi SVG preview
+brew "ffmpeg"             # Yazi video preview (decoder)
+brew "ffmpegthumbnailer"  # Yazi video thumbnails
+brew "imagemagick"        # Yazi fallback image rasterizer
+brew "sevenzip"           # Yazi archive contents preview
 brew "neovim"             # editor (LazyVim)
 brew "uv"                 # Python toolchain / version manager
 

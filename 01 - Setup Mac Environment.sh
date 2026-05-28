@@ -59,6 +59,10 @@ cp VSCode/settings.json "$VSCODE_USER/settings.json"
 mkdir -p "$HOME/.config/ghostty"
 cp ghostty/config "$HOME/.config/ghostty/config"
 
+# Copy Yazi file manager config (preview tooling installed via Brewfile)
+mkdir -p "$HOME/.config/yazi"
+cp yazi/yazi.toml "$HOME/.config/yazi/yazi.toml"
+
 # Bootstrap LazyVim (official starter) - only if no Neovim config exists yet
 if [ ! -d "$HOME/.config/nvim" ]; then
     echo "Installing LazyVim starter into ~/.config/nvim"

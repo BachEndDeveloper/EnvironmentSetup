@@ -1,0 +1,12 @@
+[mgr]
+show_hidden    = false
+sort_by        = "natural"
+sort_dir_first = true
+
+[preview]
+max_width       = 1920
+max_height      = 1080
+image_filter    = "triangle"
+image_quality   = 75
+ueberzug_scale  = 1
+ueberzug_offset = [0, 0, 0, 0]

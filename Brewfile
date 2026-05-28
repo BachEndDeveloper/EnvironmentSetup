@@ -21,6 +21,7 @@ brew "jandedobbeleer/oh-my-posh/oh-my-posh"
 
 # --- CLI tools ---
 brew "git"
+brew "lazygit"            # terminal UI for git
 brew "eza"                # ls replacement (aliased in .zshrc)
 brew "bat"                # cat replacement (aliased in .zshrc)
 brew "fzf"                # fuzzy finder (.zshrc integration)

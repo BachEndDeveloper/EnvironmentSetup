@@ -29,6 +29,17 @@ fi
 nvm install --lts
 nvm alias default 'lts/*'
 
+# --- AI coding agents ---
+
+# GitHub Copilot CLI — standalone binary to ~/.local/bin (no Node required).
+curl -fsSL https://gh.io/copilot-install | bash
+
+# Claude Code CLI — native installer; auto-updates in the background (no Node required).
+curl -fsSL https://claude.ai/install.sh | sh
+
+# Pi coding agent CLI — npm-only (nvm/Node installed above; --ignore-scripts per pi.dev docs).
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+
 # Python managed by uv (uv installed via the Brewfile above). Installs the latest stable CPython.
 uv python install
 
@@ -42,7 +53,7 @@ else
     echo "         Install .NET (see README '## .NET / C#'), then re-run this script."
 fi
 
-# Fonts are installed via the Brewfile (font-monaspace, font-monaspace-nerd-font).
+# Fonts are installed via the Brewfile (font-monaspace, font-monaspace-nerd-font, font-monaspace-frozen).
 # Editor font: "Monaspace Neon"  |  Terminal font: "MonaspiceNe Nerd Font"
 
 # Copy Oh My Posh theme and zsh config (back up any existing .zshrc first)

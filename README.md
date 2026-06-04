@@ -24,7 +24,8 @@ bash "01 - Setup Mac Environment.sh"
 
 This runs `brew bundle` against the [`Brewfile`](Brewfile) to install/upgrade all formulae, casks
 and fonts; sets up the language runtimes (Node via nvm/LTS, a uv-managed Python, the .NET Aspire
-CLI); copies the zsh / Oh My Posh / Ghostty / VS Code / Claude Code configs into place (backing up
+CLI); installs the AI coding-agent CLIs (GitHub Copilot CLI, Claude Code, Pi); copies the zsh /
+Oh My Posh / Ghostty / VS Code / Claude Code configs into place (backing up
 any existing `~/.zshrc` and `~/.claude/settings.json` first); and bootstraps LazyVim into
 `~/.config/nvim`. The .NET SDK is a manual step (see **.NET / C#** below). Finish by setting the
 Rider fonts manually (see [Rider](#rider-manual)).
@@ -57,12 +58,15 @@ I use the [Monaspace](https://monaspace.githubnext.com/) family:
 - **Editors** (VS Code, Rider): `Monaspace Neon`
 - **Terminals** (Ghostty, VS Code integrated terminal, Rider terminal): `MonaspiceNe Nerd Font`
   (the Nerd-Font-patched Monaspace Neon, for icons/glyphs)
+- **Frozen** (`font-monaspace-frozen`): static TTFs with all of Monaspace's stylistic sets baked
+  in. Use these in editors that can't configure OpenType features / character variants per-font
+  (Rider/JetBrains, Xcode) so ligatures and texture-healing render without extra config.
 
 ### macOS
 Installed automatically by the setup script via Homebrew casks:
 
 ```sh
-brew install --cask font-monaspace font-monaspace-nerd-font
+brew install --cask font-monaspace font-monaspace-nerd-font font-monaspace-frozen
 ```
 
 ### Windows
@@ -81,6 +85,10 @@ the Windows installer — install it manually from the Monaspace releases or via
   [LazyVim](https://www.lazyvim.org/) starter into `~/.config/nvim` (only if no config exists yet).
 - **Claude Code:** my `~/.claude` customizations (settings + statusline footer) are captured in
   `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`.
+- **AI coding agents:** the script installs three terminal CLIs — **GitHub Copilot CLI**
+  (`gh.io/copilot-install`) and **Claude Code** (`claude.ai/install.sh`) as standalone binaries in
+  `~/.local/bin`, and **Pi** (`@earendil-works/pi-coding-agent`) as an npm global. Each needs a
+  one-time `/login` on first run. `~/.local/bin` is added to `PATH` in `Zsh/.zshrc`.
 
 ## Languages & runtimes
 

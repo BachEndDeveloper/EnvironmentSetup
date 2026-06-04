@@ -5,3 +5,5 @@
 # for eza, oh-my-posh, etc.). Install via: brew install --cask font-monaspace-nerd-font
 font-family = MonaspiceNe Nerd Font
 font-size = 14
+window-padding-x = 10
+theme = "GitHub Dark Default"

@@ -6,6 +6,7 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # PATH additions
+export PATH="$HOME/.local/bin:$PATH"   # Copilot CLI + Claude Code (native installers)
 export PATH="$HOME/.dotnet/tools:$PATH"
 export PATH="$HOME/.aspire/bin:$PATH"
 export DOTNET_ROOT="/usr/local/share/dotnet"

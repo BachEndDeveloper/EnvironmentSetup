@@ -58,3 +58,4 @@ cask "hiddenbar"
 # --- Fonts ---
 cask "font-monaspace"             # Monaspace Neon (editors)
 cask "font-monaspace-nerd-font"   # MonaspiceNe Nerd Font (terminals)
+cask "font-monaspace-frozen"      # Monaspace Frozen (static TTFs, all stylistic sets on — for Rider/Xcode)

@@ -40,6 +40,31 @@ curl -fsSL https://claude.ai/install.sh | sh
 # Pi coding agent CLI — npm-only (nvm/Node installed above; --ignore-scripts per pi.dev docs).
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
+# Optional private AI skills repository. Supply AI_SKILLS_REPO on a new machine after
+# publishing the repository; AI_SKILLS_REF can pin a tag or commit for reproducibility.
+if [[ -n "${AI_SKILLS_REPO:-}" ]]; then
+    AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
+    if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
+        git -C "$AI_SKILLS_DIR" fetch --tags --prune origin
+    elif [[ -e "$AI_SKILLS_DIR" ]]; then
+        echo "WARNING: $AI_SKILLS_DIR exists but is not a Git checkout - skipping AI skills bootstrap."
+    else
+        mkdir -p "$(dirname "$AI_SKILLS_DIR")"
+        git clone "$AI_SKILLS_REPO" "$AI_SKILLS_DIR"
+    fi
+
+    if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
+        if [[ -n "${AI_SKILLS_REF:-}" ]]; then
+            git -C "$AI_SKILLS_DIR" checkout --detach "$AI_SKILLS_REF"
+        else
+            git -C "$AI_SKILLS_DIR" pull --ff-only
+        fi
+        bash "$AI_SKILLS_DIR/scripts/install-local.sh"
+    fi
+else
+    echo "Skipping personal AI skills. Set AI_SKILLS_REPO to clone and register them with Pi."
+fi
+
 # Python managed by uv (uv installed via the Brewfile above). Installs the latest stable CPython.
 uv python install
 

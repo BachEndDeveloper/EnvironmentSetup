@@ -101,6 +101,24 @@ the Windows installer — install it manually from the Monaspace releases or via
   `~/.local/bin`, and **Pi** (`@earendil-works/pi-coding-agent`) as an npm global. Each needs a
   one-time `/login` on first run. `~/.local/bin` is added to `PATH` in `Zsh/.zshrc`.
 
+### Personal AI skills (optional)
+
+Personal skills live in their own private repository rather than in this machine-setup repository.
+To clone that repository and register it as a local Pi package during macOS setup, set its Git URL
+before running the setup script:
+
+```sh
+export AI_SKILLS_REPO='git@github.com:BachEndDeveloper/AI-Skills.git'
+# Optional: use a release tag or commit rather than the repository default branch.
+export AI_SKILLS_REF='v0.1.0'
+bash "01 - Setup Mac Environment.sh"
+```
+
+The setup script clones the checkout to `~/source/AI-Skills` (or `AI_SKILLS_DIR`), updates it, then
+runs its `scripts/install-local.sh`. On a new or shared machine, prefer a private remote and pin
+`AI_SKILLS_REF` to a reviewed tag or commit. If `AI_SKILLS_REPO` is unset, the setup script skips
+this optional step.
+
 ## Languages & runtimes
 
 The macOS script installs and configures these automatically:

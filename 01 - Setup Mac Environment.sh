@@ -40,25 +40,6 @@ curl -fsSL https://claude.ai/install.sh | sh
 # Pi coding agent CLI — npm-only (nvm/Node installed above; --ignore-scripts per pi.dev docs).
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
-# Personal AI skills — private, version-pinned source of truth for Pi skills.
-# Update the repository URL or release tag here when the personal library moves or releases.
-AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
-AI_SKILLS_REF="v0.2.1"
-AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
-
-if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
-    git -C "$AI_SKILLS_DIR" fetch --tags --prune origin
-elif [[ -e "$AI_SKILLS_DIR" ]]; then
-    echo "ERROR: $AI_SKILLS_DIR exists but is not a Git checkout." >&2
-    exit 1
-else
-    mkdir -p "$(dirname "$AI_SKILLS_DIR")"
-    git clone "$AI_SKILLS_REPO" "$AI_SKILLS_DIR"
-fi
-
-git -C "$AI_SKILLS_DIR" checkout --detach "$AI_SKILLS_REF"
-bash "$AI_SKILLS_DIR/scripts/install-local.sh"
-
 # Python managed by uv (uv installed via the Brewfile above). Installs the latest stable CPython.
 uv python install
 
@@ -128,25 +109,35 @@ fi
 # Azure AI Foundry resource name in ~/.pi/agent/models.json (templated). See Pi/README.md.
 PI_DIR="$HOME/.pi/agent"
 if command -v pi >/dev/null 2>&1 || [ -d "$PI_DIR" ]; then
-	mkdir -p "$PI_DIR/extensions" "$PI_DIR/skills"
+	mkdir -p "$PI_DIR/extensions"
 	[ -f "$PI_DIR/settings.json" ] && cp "$PI_DIR/settings.json" "$PI_DIR/settings.json.backup"
 	[ -f "$PI_DIR/models.json" ] && cp "$PI_DIR/models.json" "$PI_DIR/models.json.backup"
 	cp Pi/settings.json "$PI_DIR/settings.json"
 	cp Pi/models.json "$PI_DIR/models.json"
 	cp -R Pi/extensions/. "$PI_DIR/extensions/"
-	cp -R Pi/skills/. "$PI_DIR/skills/"
 	echo "Pi config restored. Declared packages install on first 'pi' launch (or 'pi update --extensions')."
 	echo "         Remember: 'pi' + /login per provider, and set your Foundry resource in ~/.pi/agent/models.json."
 fi
 
-# Restore shared, user-managed Agent Skills. Pi automatically discovers ~/.agents/skills,
-# as do other compatible coding agents. This is a vendored snapshot, not packages' own skills.
-AGENT_SKILLS_DIR="$HOME/.agents/skills"
-if [ -d "Pi/agent-skills" ]; then
-	mkdir -p "$AGENT_SKILLS_DIR"
-	cp -R Pi/agent-skills/. "$AGENT_SKILLS_DIR/"
-	echo "Shared agent skills restored to $AGENT_SKILLS_DIR."
+# Personal AI skills — private, version-pinned source of truth for Pi skills.
+# This runs after Pi settings are restored so `pi install` records the package persistently.
+# Update the repository URL or release tag here when the personal library moves or releases.
+AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
+AI_SKILLS_REF="v0.2.1"
+AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
+
+if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
+    git -C "$AI_SKILLS_DIR" fetch --tags --prune origin
+elif [[ -e "$AI_SKILLS_DIR" ]]; then
+    echo "ERROR: $AI_SKILLS_DIR exists but is not a Git checkout." >&2
+    exit 1
+else
+    mkdir -p "$(dirname "$AI_SKILLS_DIR")"
+    git clone "$AI_SKILLS_REPO" "$AI_SKILLS_DIR"
 fi
+
+git -C "$AI_SKILLS_DIR" checkout --detach "$AI_SKILLS_REF"
+bash "$AI_SKILLS_DIR/scripts/install-local.sh"
 
 # External skills referenced by Pi settings.json. Keep upstream-managed skills out of the
 # shared snapshot so their repositories can evolve independently.
@@ -155,9 +146,4 @@ if [ ! -d "$PI_SKILLS_DIR/dotnet-skills" ]; then
 	mkdir -p "$PI_SKILLS_DIR"
 	git clone https://github.com/dotnet/skills.git "$PI_SKILLS_DIR/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills."
 fi
-if [ ! -d "$PI_SKILLS_DIR/aspire-skills" ]; then
-	mkdir -p "$PI_SKILLS_DIR"
-	git clone https://github.com/microsoft/aspire-skills.git "$PI_SKILLS_DIR/aspire-skills" || echo "WARNING: failed to clone microsoft/aspire-skills."
-fi
-
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

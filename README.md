@@ -26,9 +26,10 @@ This runs `brew bundle` against the [`Brewfile`](Brewfile) to install/upgrade al
 and fonts; sets up the language runtimes (Node via nvm/LTS, a uv-managed Python, the .NET Aspire
 CLI); installs the AI coding-agent CLIs (GitHub Copilot CLI, Claude Code, Pi); copies the zsh /
 Oh My Posh / Ghostty / VS Code / Claude Code / Pi configs into place (backing up
-any existing `~/.zshrc`, `~/.claude/settings.json` and `~/.pi/agent/*.json` first); and restores my
-full LazyVim config into `~/.config/nvim` (plugins, extras and Mason LSPs). The .NET SDK is a manual
-step (see **.NET / C#** below). Finish by setting the Rider fonts manually (see [Rider](#rider-manual)).
+any existing `~/.zshrc`, `~/.claude/settings.json` and `~/.pi/agent/*.json` first); restores my
+full LazyVim config into `~/.config/nvim` (plugins, extras and Mason LSPs); and restores my
+user-managed Agent Skills into `~/.agents/skills`. The .NET SDK is a manual step (see **.NET / C#**
+below). Finish by setting the Rider fonts manually (see [Rider](#rider-manual)).
 
 Homebrew packages are declared in the [`Brewfile`](Brewfile) (the source of truth). Add/remove
 entries there; regenerate it from a machine with `brew bundle dump --force --file=Brewfile`, or list
@@ -90,10 +91,11 @@ the Windows installer — install it manually from the Monaspace releases or via
   Any existing config is backed up to `~/.config/nvim.backup-<timestamp>`. See `nvim/README.md`.
 - **Claude Code:** my `~/.claude` customizations (settings + statusline footer) are captured in
   `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`.
-- **Pi:** my `~/.pi/agent` config (settings, custom provider/model catalog, and local
-  extensions/skills) is captured in `Pi/` and restored by the setup script. Declared packages
-  install on first `pi` launch; no secrets are vendored (`/login` per provider afterwards). See
-  `Pi/README.md`.
+- **Pi and shared Agent Skills:** my `~/.pi/agent` config (settings, custom provider/model
+  catalog, and Pi-local extensions/skills) and my user-managed `~/.agents/skills` collection are
+  captured in `Pi/` and restored by the setup script. The dotnet and Aspire skills remain
+  upstream-managed repositories cloned into `~/pi-skills/`. Declared packages install on first
+  `pi` launch; no secrets are vendored (`/login` per provider afterwards). See `Pi/README.md`.
 - **AI coding agents:** the script installs three terminal CLIs — **GitHub Copilot CLI**
   (`gh.io/copilot-install`) and **Claude Code** (`claude.ai/install.sh`) as standalone binaries in
   `~/.local/bin`, and **Pi** (`@earendil-works/pi-coding-agent`) as an npm global. Each needs a

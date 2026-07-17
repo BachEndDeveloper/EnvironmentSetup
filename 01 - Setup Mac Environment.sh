@@ -120,10 +120,25 @@ if command -v pi >/dev/null 2>&1 || [ -d "$PI_DIR" ]; then
 	echo "         Remember: 'pi' + /login per provider, and set your Foundry resource in ~/.pi/agent/models.json."
 fi
 
-# External Pi skills referenced by settings.json (dotnet/skills -> ~/pi-skills/dotnet-skills/plugins).
-if [ ! -d "$HOME/pi-skills/dotnet-skills" ]; then
-	mkdir -p "$HOME/pi-skills"
-	git clone https://github.com/dotnet/skills.git "$HOME/pi-skills/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills."
+# Restore shared, user-managed Agent Skills. Pi automatically discovers ~/.agents/skills,
+# as do other compatible coding agents. This is a vendored snapshot, not packages' own skills.
+AGENT_SKILLS_DIR="$HOME/.agents/skills"
+if [ -d "Pi/agent-skills" ]; then
+	mkdir -p "$AGENT_SKILLS_DIR"
+	cp -R Pi/agent-skills/. "$AGENT_SKILLS_DIR/"
+	echo "Shared agent skills restored to $AGENT_SKILLS_DIR."
+fi
+
+# External skills referenced by Pi settings.json. Keep upstream-managed skills out of the
+# shared snapshot so their repositories can evolve independently.
+PI_SKILLS_DIR="$HOME/pi-skills"
+if [ ! -d "$PI_SKILLS_DIR/dotnet-skills" ]; then
+	mkdir -p "$PI_SKILLS_DIR"
+	git clone https://github.com/dotnet/skills.git "$PI_SKILLS_DIR/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills."
+fi
+if [ ! -d "$PI_SKILLS_DIR/aspire-skills" ]; then
+	mkdir -p "$PI_SKILLS_DIR"
+	git clone https://github.com/microsoft/aspire-skills.git "$PI_SKILLS_DIR/aspire-skills" || echo "WARNING: failed to clone microsoft/aspire-skills."
 fi
 
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

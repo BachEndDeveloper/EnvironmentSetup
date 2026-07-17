@@ -25,10 +25,10 @@ bash "01 - Setup Mac Environment.sh"
 This runs `brew bundle` against the [`Brewfile`](Brewfile) to install/upgrade all formulae, casks
 and fonts; sets up the language runtimes (Node via nvm/LTS, a uv-managed Python, the .NET Aspire
 CLI); installs the AI coding-agent CLIs (GitHub Copilot CLI, Claude Code, Pi); copies the zsh /
-Oh My Posh / Ghostty / VS Code / Claude Code configs into place (backing up
-any existing `~/.zshrc` and `~/.claude/settings.json` first); and bootstraps LazyVim into
-`~/.config/nvim`. The .NET SDK is a manual step (see **.NET / C#** below). Finish by setting the
-Rider fonts manually (see [Rider](#rider-manual)).
+Oh My Posh / Ghostty / VS Code / Claude Code / Pi configs into place (backing up
+any existing `~/.zshrc`, `~/.claude/settings.json` and `~/.pi/agent/*.json` first); and restores my
+full LazyVim config into `~/.config/nvim` (plugins, extras and Mason LSPs). The .NET SDK is a manual
+step (see **.NET / C#** below). Finish by setting the Rider fonts manually (see [Rider](#rider-manual)).
 
 Homebrew packages are declared in the [`Brewfile`](Brewfile) (the source of truth). Add/remove
 entries there; regenerate it from a machine with `brew bundle dump --force --file=Brewfile`, or list
@@ -63,6 +63,7 @@ I use the [Monaspace](https://monaspace.githubnext.com/) family:
   (Rider/JetBrains, Xcode) so ligatures and texture-healing render without extra config.
 
 ### macOS
+
 Installed automatically by the setup script via Homebrew casks:
 
 ```sh
@@ -70,6 +71,7 @@ brew install --cask font-monaspace font-monaspace-nerd-font font-monaspace-froze
 ```
 
 ### Windows
+
 Font files are bundled in the `Fonts/` folder and installed by the Windows setup script
 (Cascadia Code, JetBrains Mono and their Nerd Font variants). Monaspace is not yet wired into
 the Windows installer — install it manually from the Monaspace releases or via the Nerd Fonts site.
@@ -81,10 +83,16 @@ the Windows installer — install it manually from the Monaspace releases or via
 - **VS Code:** settings copied to `~/Library/Application Support/Code/User/settings.json`.
 - **Shell:** zsh config in `Zsh/`, Oh My Posh theme in `OhMyPosh/`. The `.zshrc` uses
   `bat`, `fzf`, `fd` and `zoxide`, which the setup script installs.
-- **Neovim:** the script installs Neovim + ripgrep and bootstraps the official
-  [LazyVim](https://www.lazyvim.org/) starter into `~/.config/nvim` (only if no config exists yet).
+- **Neovim:** the script installs Neovim + ripgrep and restores my full
+  [LazyVim](https://www.lazyvim.org/) config from `nvim/` into `~/.config/nvim` — plugins pinned via
+  `lazy-lock.json`, enabled extras, and the Mason LSPs/formatters (auto-installed on first launch).
+  Any existing config is backed up to `~/.config/nvim.backup-<timestamp>`. See `nvim/README.md`.
 - **Claude Code:** my `~/.claude` customizations (settings + statusline footer) are captured in
   `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`.
+- **Pi:** my `~/.pi/agent` config (settings, custom provider/model catalog, and local
+  extensions/skills) is captured in `Pi/` and restored by the setup script. Declared packages
+  install on first `pi` launch; no secrets are vendored (`/login` per provider afterwards). See
+  `Pi/README.md`.
 - **AI coding agents:** the script installs three terminal CLIs — **GitHub Copilot CLI**
   (`gh.io/copilot-install`) and **Claude Code** (`claude.ai/install.sh`) as standalone binaries in
   `~/.local/bin`, and **Pi** (`@earendil-works/pi-coding-agent`) as an npm global. Each needs a
@@ -104,7 +112,7 @@ The macOS script installs and configures these automatically:
   `PATH`). It needs the .NET SDK, so **install .NET first** — the setup script skips Aspire (with a
   warning) if `dotnet` isn't on `PATH`; just re-run setup after installing .NET.
 
-### .NET / C#
+### .NET / C #
 
 Install the .NET SDK with the **official installer** (not Homebrew), so it lands at the standard
 `/usr/local/share/dotnet` location:
@@ -122,6 +130,7 @@ Do this **before** running the setup script so the Aspire CLI step can find `dot
 script skips Aspire and you re-run setup afterwards).
 
 ## Rider (manual)
+
 Rider settings aren't portable, so set these by hand after install:
 enable the new UI, set the **editor font to `Monaspace Neon`** (ligatures on), set the
 **terminal font to `MonaspiceNe Nerd Font`**, theme Rider Night, and install the Azure Toolkit +

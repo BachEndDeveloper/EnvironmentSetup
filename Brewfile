@@ -49,6 +49,7 @@ cask "visual-studio-code"
 cask "rider"
 cask "datagrip"
 cask "ghostty"
+cask "supacode"            # terminal coding agents command center (Pi/Claude/Codex surfaces)
 cask "fork"
 cask "commander-one"
 cask "rectangle-pro"

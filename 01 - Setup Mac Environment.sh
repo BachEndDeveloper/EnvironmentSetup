@@ -2,12 +2,12 @@
 
 # Install Homebrew
 which -s brew
-if [[ $? != 0 ]] ; then
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    PATH=$PATH:/opt/homebrew/bin
+if [[ $? != 0 ]]; then
+	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+	PATH=$PATH:/opt/homebrew/bin
 else
-    brew update
-    echo "HOMEBREW updated!"
+	brew update
+	echo "HOMEBREW updated!"
 fi
 
 # Install / upgrade all declared Homebrew taps, formulae, casks and fonts (see Brewfile).
@@ -22,8 +22,8 @@ brew link --overwrite --quiet azure-functions-core-tools@4 2>/dev/null || true
 # Node via nvm, defaulting to LTS (.zshrc loads nvm; install nvm here if missing).
 export NVM_DIR="$HOME/.nvm"
 if [ ! -s "$NVM_DIR/nvm.sh" ]; then
-    echo "Installing nvm"
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+	echo "Installing nvm"
+	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 fi
 . "$NVM_DIR/nvm.sh"
 nvm install --lts
@@ -46,11 +46,11 @@ uv python install
 # .NET SDK is installed manually via the official installer (not Homebrew) - see README "## .NET / C#".
 # The Aspire CLI needs the .NET SDK, so only install it once dotnet is on PATH.
 if command -v dotnet >/dev/null 2>&1; then
-    # .NET Aspire CLI -> installs to ~/.aspire/bin (already on PATH via .zshrc).
-    curl -sSL https://aspire.dev/install.sh | bash
+	# .NET Aspire CLI -> installs to ~/.aspire/bin (already on PATH via .zshrc).
+	curl -sSL https://aspire.dev/install.sh | bash
 else
-    echo "WARNING: .NET SDK not found - skipping Aspire CLI."
-    echo "         Install .NET (see README '## .NET / C#'), then re-run this script."
+	echo "WARNING: .NET SDK not found - skipping Aspire CLI."
+	echo "         Install .NET (see README '## .NET / C#'), then re-run this script."
 fi
 
 # Fonts are installed via the Brewfile (font-monaspace, font-monaspace-nerd-font, font-monaspace-frozen).
@@ -74,23 +74,55 @@ cp ghostty/config "$HOME/.config/ghostty/config"
 mkdir -p "$HOME/.config/yazi"
 cp yazi/yazi.toml "$HOME/.config/yazi/yazi.toml"
 
-# Bootstrap LazyVim (official starter) - only if no Neovim config exists yet
-if [ ! -d "$HOME/.config/nvim" ]; then
-    echo "Installing LazyVim starter into ~/.config/nvim"
-    git clone https://github.com/LazyVim/starter "$HOME/.config/nvim"
-    rm -rf "$HOME/.config/nvim/.git"
+# Restore my full Neovim / LazyVim config (vendored in nvim/ - see nvim/README.md).
+# This reproduces the exact plugins (pinned in lazy-lock.json), LazyVim extras and the
+# Mason LSPs/formatters, not just a blank starter. Needs neovim + ripgrep (Brewfile).
+if [ -d "$HOME/.config/nvim" ]; then
+	nvim_backup="$HOME/.config/nvim.backup-$(date +%Y%m%d%H%M%S)"
+	echo "Backing up existing ~/.config/nvim to $nvim_backup"
+	mv "$HOME/.config/nvim" "$nvim_backup"
+fi
+mkdir -p "$HOME/.config/nvim"
+cp -R nvim/. "$HOME/.config/nvim/"
+# Install plugins at the versions pinned in lazy-lock.json. Mason installs the LSPs/formatters
+# listed in lua/plugins/mason-tools.lua on the first interactive 'nvim' launch.
+if command -v nvim >/dev/null 2>&1; then
+	echo "Installing Neovim plugins (Lazy restore)..."
+	nvim --headless "+Lazy! restore" +qa || echo "WARNING: 'Lazy restore' failed - run ':Lazy restore' inside nvim."
 else
-    echo "~/.config/nvim already exists - skipping LazyVim bootstrap"
+	echo "WARNING: nvim not found - skipping plugin restore (the Brewfile installs neovim)."
 fi
 
 # Restore Claude Code customizations (settings + statusline footer + hooks).
 # NOTE: settings.json references node via an absolute nvm path and the GSD setup;
 #       re-enable the plugins listed in ClaudeCode/README.md and fix paths after install.
 if [ -d "$HOME/.claude" ]; then
-    [ -f "$HOME/.claude/settings.json" ] && cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.backup"
-    cp ClaudeCode/settings.json "$HOME/.claude/settings.json"
-    mkdir -p "$HOME/.claude/hooks"
-    cp ClaudeCode/hooks/* "$HOME/.claude/hooks/" 2>/dev/null || true
+	[ -f "$HOME/.claude/settings.json" ] && cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.backup"
+	cp ClaudeCode/settings.json "$HOME/.claude/settings.json"
+	mkdir -p "$HOME/.claude/hooks"
+	cp ClaudeCode/hooks/* "$HOME/.claude/hooks/" 2>/dev/null || true
+fi
+
+# Restore Pi coding agent customizations (settings + custom provider/model catalog + local
+# extensions/skills). NO secrets are vendored: run 'pi' then /login per provider, and set your
+# Azure AI Foundry resource name in ~/.pi/agent/models.json (templated). See Pi/README.md.
+PI_DIR="$HOME/.pi/agent"
+if command -v pi >/dev/null 2>&1 || [ -d "$PI_DIR" ]; then
+	mkdir -p "$PI_DIR/extensions" "$PI_DIR/skills"
+	[ -f "$PI_DIR/settings.json" ] && cp "$PI_DIR/settings.json" "$PI_DIR/settings.json.backup"
+	[ -f "$PI_DIR/models.json" ] && cp "$PI_DIR/models.json" "$PI_DIR/models.json.backup"
+	cp Pi/settings.json "$PI_DIR/settings.json"
+	cp Pi/models.json "$PI_DIR/models.json"
+	cp -R Pi/extensions/. "$PI_DIR/extensions/"
+	cp -R Pi/skills/. "$PI_DIR/skills/"
+	echo "Pi config restored. Declared packages install on first 'pi' launch (or 'pi update --extensions')."
+	echo "         Remember: 'pi' + /login per provider, and set your Foundry resource in ~/.pi/agent/models.json."
+fi
+
+# External Pi skills referenced by settings.json (dotnet/skills -> ~/pi-skills/dotnet-skills/plugins).
+if [ ! -d "$HOME/pi-skills/dotnet-skills" ]; then
+	mkdir -p "$HOME/pi-skills"
+	git clone https://github.com/dotnet/skills.git "$HOME/pi-skills/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills."
 fi
 
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

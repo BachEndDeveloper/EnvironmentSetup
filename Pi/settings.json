@@ -1,0 +1,19 @@
+{
+  "lastChangelogVersion": "0.80.10",
+  "theme": "dark",
+  "defaultProvider": "foundry-claude",
+  "defaultModel": "claude-opus-4-8",
+  "defaultThinkingLevel": "high",
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-mcp-adapter",
+    "npm:context-mode",
+    "npm:pi-subagents",
+    "npm:pi-lens",
+    "npm:@hypabolic/pi-hypa",
+    "npm:pi-powerline-footer"
+  ],
+  "skills": [
+    "~/pi-skills/dotnet-skills/plugins"
+  ]
+}

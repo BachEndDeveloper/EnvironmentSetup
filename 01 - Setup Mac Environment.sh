@@ -74,9 +74,10 @@ cp ghostty/config "$HOME/.config/ghostty/config"
 mkdir -p "$HOME/.config/yazi"
 cp yazi/yazi.toml "$HOME/.config/yazi/yazi.toml"
 
-# Restore my full Neovim / LazyVim config (vendored in nvim/ - see nvim/README.md).
-# This reproduces the exact plugins (pinned in lazy-lock.json), LazyVim extras and the
-# Mason LSPs/formatters, not just a blank starter. Needs neovim + ripgrep (Brewfile).
+# Restore my Neovim / LazyVim config (vendored in nvim/ - see nvim/README.md).
+# The config declares WHAT I run - my LazyVim extras and Mason LSPs/formatters - and the
+# sync below installs the LATEST LazyVim plus every plugin/extra it declares (no version
+# pinning, so I get current versions at the time I run this). Needs neovim + ripgrep (Brewfile).
 if [ -d "$HOME/.config/nvim" ]; then
 	nvim_backup="$HOME/.config/nvim.backup-$(date +%Y%m%d%H%M%S)"
 	echo "Backing up existing ~/.config/nvim to $nvim_backup"
@@ -84,13 +85,13 @@ if [ -d "$HOME/.config/nvim" ]; then
 fi
 mkdir -p "$HOME/.config/nvim"
 cp -R nvim/. "$HOME/.config/nvim/"
-# Install plugins at the versions pinned in lazy-lock.json. Mason installs the LSPs/formatters
-# listed in lua/plugins/mason-tools.lua on the first interactive 'nvim' launch.
+# Install the latest LazyVim + all declared plugins/extras (Lazy sync). Mason installs the
+# LSPs/formatters listed in lua/plugins/mason-tools.lua on the first interactive 'nvim' launch.
 if command -v nvim >/dev/null 2>&1; then
-	echo "Installing Neovim plugins (Lazy restore)..."
-	nvim --headless "+Lazy! restore" +qa || echo "WARNING: 'Lazy restore' failed - run ':Lazy restore' inside nvim."
+	echo "Installing Neovim plugins (Lazy sync, latest versions)..."
+	nvim --headless "+Lazy! sync" +qa || echo "WARNING: 'Lazy sync' failed - run ':Lazy sync' inside nvim."
 else
-	echo "WARNING: nvim not found - skipping plugin restore (the Brewfile installs neovim)."
+	echo "WARNING: nvim not found - skipping plugin install (the Brewfile installs neovim)."
 fi
 
 # Restore Claude Code customizations (settings + statusline footer + hooks).

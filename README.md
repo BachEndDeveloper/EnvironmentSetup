@@ -83,9 +83,10 @@ the Windows installer — install it manually from the Monaspace releases or via
 - **VS Code:** settings copied to `~/Library/Application Support/Code/User/settings.json`.
 - **Shell:** zsh config in `Zsh/`, Oh My Posh theme in `OhMyPosh/`. The `.zshrc` uses
   `bat`, `fzf`, `fd` and `zoxide`, which the setup script installs.
-- **Neovim:** the script installs Neovim + ripgrep and restores my full
-  [LazyVim](https://www.lazyvim.org/) config from `nvim/` into `~/.config/nvim` — plugins pinned via
-  `lazy-lock.json`, enabled extras, and the Mason LSPs/formatters (auto-installed on first launch).
+- **Neovim:** the script installs Neovim + ripgrep and restores my
+  [LazyVim](https://www.lazyvim.org/) config from `nvim/` into `~/.config/nvim`, then runs
+  `:Lazy sync` to install the **latest** LazyVim plus every plugin/extra the config declares (not
+  version-pinned) — along with the Mason LSPs/formatters (auto-installed on first launch).
   Any existing config is backed up to `~/.config/nvim.backup-<timestamp>`. See `nvim/README.md`.
 - **Claude Code:** my `~/.claude` customizations (settings + statusline footer) are captured in
   `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`.

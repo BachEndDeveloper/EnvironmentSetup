@@ -55,6 +55,7 @@ cask "commander-one"
 cask "rectangle-pro"
 cask "alt-tab"
 cask "hiddenbar"
+cask "supacode"            # installs Supacode and its globally managed Pi skill
 
 # --- Fonts ---
 cask "font-monaspace"             # Monaspace Neon (editors)

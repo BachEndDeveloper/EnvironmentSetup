@@ -110,7 +110,7 @@ before running the setup script:
 ```sh
 export AI_SKILLS_REPO='git@github.com:BachEndDeveloper/AI-Skills.git'
 # Optional: use a release tag or commit rather than the repository default branch.
-export AI_SKILLS_REF='v0.2.0'
+export AI_SKILLS_REF='v0.2.1'
 bash "01 - Setup Mac Environment.sh"
 ```
 

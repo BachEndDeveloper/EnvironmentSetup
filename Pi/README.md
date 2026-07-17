@@ -17,6 +17,10 @@ providers/models and local resources can be restored after a reinstall.
   from `~/.pi/agent/extensions/`. **Supacode-managed**; vendored here as a fallback.
 - `skills/supacode-cli/SKILL.md` — the local Supacode CLI skill, auto-discovered from
   `~/.pi/agent/skills/`. **Supacode-managed**; vendored here as a fallback.
+- `agent-skills/` — the complete, user-managed `~/.agents/skills/` collection. This location is
+  automatically discovered by Pi and other Agent Skills-compatible coding agents. It includes
+  each skill's supporting scripts, references, and assets; package-provided and dotnet skills are
+  restored separately.
 
 ## Packages (extensions) I run
 
@@ -40,7 +44,9 @@ repo — clone it there separately (see restore steps).
 
 1. Backs up any existing `~/.pi/agent/settings.json` and `models.json` to `*.backup`.
 2. Copies `settings.json` and `models.json` into `~/.pi/agent/`.
-3. Copies the local `extensions/` and `skills/` into `~/.pi/agent/`.
+3. Copies the Pi-local `extensions/` and `skills/` into `~/.pi/agent/`.
+4. Restores the vendored shared skills from `agent-skills/` into `~/.agents/skills/`; Pi discovers
+   that location automatically.
 
 ## Manual steps to finish the restore
 
@@ -58,6 +64,21 @@ repo — clone it there separately (see restore steps).
 
 5. **Supacode resources** (optional) are restored automatically when you install and connect
    Supacode; the vendored copies here are only a fallback.
+
+## Updating the shared-skill snapshot
+
+After adding or changing a skill, refresh the version committed to this repository before setting
+up another Mac. Review it for secrets first, then run from the repository root:
+
+```sh
+rsync -a --delete --exclude='.DS_Store' ~/.pi/agent/skills/ Pi/skills/
+rsync -a --delete --exclude='.DS_Store' ~/.agents/skills/ Pi/agent-skills/
+git add Pi/skills Pi/agent-skills
+```
+
+The setup script intentionally does not copy `~/.pi/agent/npm/`: those are package-managed
+extensions, reinstalled from `settings.json`. It also does not copy the separately cloned
+`dotnet/skills` repository.
 
 ## Security
 

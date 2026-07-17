@@ -120,6 +120,15 @@ if command -v pi >/dev/null 2>&1 || [ -d "$PI_DIR" ]; then
 	echo "         Remember: 'pi' + /login per provider, and set your Foundry resource in ~/.pi/agent/models.json."
 fi
 
+# Restore shared, user-managed Agent Skills. Pi automatically discovers ~/.agents/skills,
+# as do other compatible coding agents. This is a vendored snapshot, not packages' own skills.
+AGENT_SKILLS_DIR="$HOME/.agents/skills"
+if [ -d "Pi/agent-skills" ]; then
+	mkdir -p "$AGENT_SKILLS_DIR"
+	cp -R Pi/agent-skills/. "$AGENT_SKILLS_DIR/"
+	echo "Shared agent skills restored to $AGENT_SKILLS_DIR."
+fi
+
 # External Pi skills referenced by settings.json (dotnet/skills -> ~/pi-skills/dotnet-skills/plugins).
 if [ ! -d "$HOME/pi-skills/dotnet-skills" ]; then
 	mkdir -p "$HOME/pi-skills"

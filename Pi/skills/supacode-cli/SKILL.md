@@ -18,7 +18,7 @@ to your own shell, not to anything you created.
 
 For new tabs, surface ID = tab ID.
 
-### Correct
+### Correct:
 
 ```sh
 TAB_ID=$(supacode tab new -i "npm start")
@@ -27,7 +27,7 @@ supacode surface close -t "$TAB_ID" -s "$SPLIT_ID"
 supacode tab close -t "$TAB_ID"
 ```
 
-### WRONG
+### WRONG:
 
 ```sh
 supacode tab new -i "npm start"           # BAD: not captured

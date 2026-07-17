@@ -123,7 +123,7 @@ fi
 # This runs after Pi settings are restored so `pi install` records the package persistently.
 # Update the repository URL or release tag here when the personal library moves or releases.
 AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
-AI_SKILLS_REF="v0.2.1"
+AI_SKILLS_REF="v0.3.0"
 AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
 
 if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
@@ -145,5 +145,9 @@ PI_SKILLS_DIR="$HOME/pi-skills"
 if [ ! -d "$PI_SKILLS_DIR/dotnet-skills" ]; then
 	mkdir -p "$PI_SKILLS_DIR"
 	git clone https://github.com/dotnet/skills.git "$PI_SKILLS_DIR/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills."
+fi
+if [ ! -d "$PI_SKILLS_DIR/aspire-skills" ]; then
+	mkdir -p "$PI_SKILLS_DIR"
+	git clone https://github.com/microsoft/aspire-skills.git "$PI_SKILLS_DIR/aspire-skills" || echo "WARNING: failed to clone microsoft/aspire-skills."
 fi
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

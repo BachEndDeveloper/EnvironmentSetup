@@ -4,7 +4,7 @@ Backup of the non-secret [Pi](https://pi.dev) configuration restored on a new ma
 
 ## Files
 
-- `settings.json` — global Pi preferences, provider/model defaults, Pi package list, and the upstream dotnet-skills path. It contains no secrets.
+- `settings.json` — global Pi preferences, provider/model defaults, Pi package list, and the upstream dotnet- and Aspire-skills paths. It contains no secrets.
 - `models.json` — custom Azure AI Foundry provider/model catalog. It contains no API keys; the Foundry hostname is templated as `YOUR-FOUNDRY-RESOURCE`.
 - `extensions/supacode/index.ts` — Supacode↔Pi integration extension retained as a fallback. Supacode itself is installed through the Homebrew cask in the root `Brewfile`.
 
@@ -13,7 +13,7 @@ Backup of the non-secret [Pi](https://pi.dev) configuration restored on a new ma
 1. It backs up existing `~/.pi/agent/settings.json` and `models.json`.
 2. It copies this directory's `settings.json`, `models.json`, and local extensions into `~/.pi/agent/`.
 3. Earlier in the script, it clones the private AI-Skills repository at its pinned tag and registers it as a Pi package. That package is the sole source for repository-managed skills.
-4. It clones the upstream dotnet skills repository into `~/pi-skills/dotnet-skills`, because this configuration references its plugin path.
+4. It clones the upstream dotnet and Aspire skills repositories into `~/pi-skills/`, because this configuration references both paths.
 
 No skill directory is copied from this repository into `~/.agents/skills` or `~/.pi/agent/skills`.
 

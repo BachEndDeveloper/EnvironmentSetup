@@ -129,10 +129,16 @@ if [ -d "Pi/agent-skills" ]; then
 	echo "Shared agent skills restored to $AGENT_SKILLS_DIR."
 fi
 
-# External Pi skills referenced by settings.json (dotnet/skills -> ~/pi-skills/dotnet-skills/plugins).
-if [ ! -d "$HOME/pi-skills/dotnet-skills" ]; then
-	mkdir -p "$HOME/pi-skills"
-	git clone https://github.com/dotnet/skills.git "$HOME/pi-skills/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills."
+# External skills referenced by Pi settings.json. Keep upstream-managed skills out of the
+# shared snapshot so their repositories can evolve independently.
+PI_SKILLS_DIR="$HOME/pi-skills"
+if [ ! -d "$PI_SKILLS_DIR/dotnet-skills" ]; then
+	mkdir -p "$PI_SKILLS_DIR"
+	git clone https://github.com/dotnet/skills.git "$PI_SKILLS_DIR/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills."
+fi
+if [ ! -d "$PI_SKILLS_DIR/aspire-skills" ]; then
+	mkdir -p "$PI_SKILLS_DIR"
+	git clone https://github.com/microsoft/aspire-skills.git "$PI_SKILLS_DIR/aspire-skills" || echo "WARNING: failed to clone microsoft/aspire-skills."
 fi
 
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

@@ -93,8 +93,9 @@ the Windows installer — install it manually from the Monaspace releases or via
   `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`.
 - **Pi and shared Agent Skills:** my `~/.pi/agent` config (settings, custom provider/model
   catalog, and Pi-local extensions/skills) and my user-managed `~/.agents/skills` collection are
-  captured in `Pi/` and restored by the setup script. Declared packages install on first `pi`
-  launch; no secrets are vendored (`/login` per provider afterwards). See `Pi/README.md`.
+  captured in `Pi/` and restored by the setup script. The dotnet and Aspire skills remain
+  upstream-managed repositories cloned into `~/pi-skills/`. Declared packages install on first
+  `pi` launch; no secrets are vendored (`/login` per provider afterwards). See `Pi/README.md`.
 - **AI coding agents:** the script installs three terminal CLIs — **GitHub Copilot CLI**
   (`gh.io/copilot-install`) and **Claude Code** (`claude.ai/install.sh`) as standalone binaries in
   `~/.local/bin`, and **Pi** (`@earendil-works/pi-coding-agent`) as an npm global. Each needs a

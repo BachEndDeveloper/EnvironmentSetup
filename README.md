@@ -24,11 +24,12 @@ bash "01 - Setup Mac Environment.sh"
 
 This runs `brew bundle` against the [`Brewfile`](Brewfile) to install/upgrade all formulae, casks
 and fonts; sets up the language runtimes (Node via nvm/LTS, a uv-managed Python, the .NET Aspire
-CLI); installs the AI coding-agent CLIs (GitHub Copilot CLI, Claude Code, Pi, and Supacode); copies
-the zsh / Oh My Posh / Ghostty / VS Code / Claude Code / Pi configs into place (backing up any
-existing `~/.zshrc`, `~/.claude/settings.json` and `~/.pi/agent/*.json` first); restores my full
-LazyVim config into `~/.config/nvim` (plugins, extras and Mason LSPs); and clones the pinned private
-AI-Skills repository as Pi's source of repository-managed skills. The .NET SDK is a manual step (see
+CLI); installs the AI coding-agent CLIs (GitHub Copilot CLI, Claude Code, Pi, and Supacode) plus the
+hunk diff reviewer; copies the zsh / Oh My Posh / Ghostty / VS Code / Claude Code / Pi configs into
+place (backing up any existing `~/.zshrc`, `~/.claude/settings.json` and `~/.pi/agent/*.json`
+first); restores my full LazyVim config into `~/.config/nvim` (plugins, extras and Mason LSPs); and
+clones the pinned private AI-Skills repository as Pi's source of repository-managed skills. The .NET
+SDK is a manual step (see
 **.NET / C#** below). Finish by setting the Rider fonts manually (see [Rider](#rider-manual)).
 
 Homebrew packages are declared in the [`Brewfile`](Brewfile) (the source of truth). Add/remove
@@ -100,6 +101,11 @@ the Windows installer — install it manually from the Monaspace releases or via
   (`gh.io/copilot-install`) and **Claude Code** (`claude.ai/install.sh`) as standalone binaries in
   `~/.local/bin`, and **Pi** (`@earendil-works/pi-coding-agent`) as an npm global. Each needs a
   one-time `/login` on first run. `~/.local/bin` is added to `PATH` in `Zsh/.zshrc`.
+- **hunk:** [hunk](https://github.com/modem-dev/hunk) (`hunkdiff` on npm) is a review-first terminal
+  diff viewer built for reviewing agent-generated changes. Installed as an npm global
+  (`npm i -g hunkdiff`, needs Node 18+). Use `hunk diff` to review the working tree (including
+  untracked files), `hunk diff --watch` to auto-reload as it changes, and `hunk show [rev]` to
+  review a commit. Docs: [hunk.dev](https://hunk.dev).
 
 ### Personal AI skills
 

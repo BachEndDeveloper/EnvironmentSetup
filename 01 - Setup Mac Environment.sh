@@ -40,6 +40,10 @@ curl -fsSL https://claude.ai/install.sh | sh
 # Pi coding agent CLI — npm-only (nvm/Node installed above; --ignore-scripts per pi.dev docs).
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
+# hunk — review-first terminal diff viewer for agentic coders (https://github.com/modem-dev/hunk).
+# npm global (needs Node 18+, installed above); provides the `hunk` command (hunk diff / hunk show).
+npm install -g hunkdiff
+
 # Python managed by uv (uv installed via the Brewfile above). Installs the latest stable CPython.
 uv python install
 

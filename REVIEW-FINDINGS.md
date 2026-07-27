@@ -122,7 +122,15 @@ Claude Code runs a `command` hook in *shell form* when the entry has no `args`
 key, so `/bin/sh` expands `$HOME` at run time. Using `$HOME` keeps the vendored
 file and the installed file identical, which is simpler than templating.
 
-## 4. Referenced hooks are not vendored — MEDIUM
+## 4. Referenced hooks are not vendored — MEDIUM ✅ resolved 2026-07-27 by removing GSD
+
+**Resolved by deletion, not by fixing.** GSD was removed entirely: `settings.json`
+no longer declares any hooks or a statusline, `ClaudeCode/hooks/gsd-statusline.js`
+is deleted, and the setup script no longer copies a hooks directory. There is
+nothing left to reference, so the silent-gap class is gone rather than guarded.
+The machine had already moved on — `~/.claude/hooks/` did not exist and the live
+`~/.claude/settings.json` contained no GSD references. The description below is
+the state at the time of the review.
 
 `settings.json` references 10 hooks; only `gsd-statusline.js` exists in
 `ClaudeCode/hooks/`. The other nine belong to the external GSD setup:
@@ -139,9 +147,10 @@ the combination with findings 2 and 3: settings are restored unconditionally,
 the hooks they point at may not exist, nothing fails loudly, and the result is
 a Claude Code that appears configured but has no working hooks.
 
-**Fix:** either vendor the hooks if their licence allows, or have the setup
-script verify they exist after restore and print a clear warning listing what is
-missing. A five-line check converts a silent gap into an actionable message.
+**Fix (superseded):** the plan was to vendor the hooks or add a post-restore
+check warning about missing ones. A check was briefly added, then removed along
+with GSD itself — deleting the dependency beat guarding it. `ClaudeCode/README.md`
+now records the rule that any future hook must have its script vendored here.
 
 ## 5. Documentation drift on the pinned tag — MEDIUM
 
@@ -296,11 +305,11 @@ broken script implies coverage that does not exist.
       lists the missing ones on stderr, plus a warning if `node` is absent.
       Exercised against a hooks directory containing only the vendored
       statusline: it correctly reported the 9 GSD hooks as missing.
-- [ ] Verify on this machine that hooks actually fire after the change
-      — **still open, and blocked on finding 4**: the GSD hooks are not installed
-      here at all (`~/.claude/hooks/` has none of them), so there is nothing to
-      fire yet. Reinstall GSD, then confirm the statusline renders and a
-      `PostToolUse` hook produces its side effect.
+- [x] Verify on this machine that hooks actually fire after the change
+      — **moot**: GSD was removed on 2026-07-27, so `settings.json` declares no
+      hooks and no statusline at all. Nothing to fire. If a hook is ever added
+      back, its script must be vendored in `ClaudeCode/` and copied by the setup
+      script — see finding 4 and `ClaudeCode/README.md`.
 
 ### Phase D — Documentation consistency 🟡 partly done
 

@@ -4,42 +4,34 @@ Backup of my Claude Code (`~/.claude`) customizations so they can be restored af
 
 ## Files
 
-- `settings.json` — my Claude Code config: model (`opus[1m]`), `effortLevel`, the **statusline
-  footer**, the hook wiring, enabled plugins, and an experimental feature flag in `env`.
-  Contains **no secrets**.
-- `hooks/gsd-statusline.js` — the custom statusline **footer** script referenced by
-  `settings.json` (`statusLine.command`).
+- `settings.json` — my Claude Code config: model (`opus[1m]`), `effortLevel`, enabled plugins, and
+  an experimental feature flag in `env`. Contains **no secrets** and **no machine-specific paths**.
 
 ## What the Mac setup script does
 
 `01 - Setup Mac Environment.sh` backs up any existing `~/.claude/settings.json` to
-`settings.json.backup`, then copies `settings.json` and `hooks/gsd-statusline.js` into `~/.claude`.
-Afterwards it checks that every hook `settings.json` references actually exists in
-`~/.claude/hooks/` and prints a `WARNING` listing any that are missing, plus a warning if `node`
-isn't on `PATH`. A missing hook otherwise fails silently at runtime, which is how this config
-spent a long time doing nothing at all.
+`settings.json.backup`, then copies `settings.json` into `~/.claude`.
 
-## Paths are deliberately generic
+## No hooks are configured
 
-`settings.json` contains **no machine-specific paths**. Hook commands invoke `node` / `bash` from
-`PATH` and reference scripts as `"$HOME/.claude/hooks/<name>"`. Claude Code runs a `command` hook
-in *shell form* when the entry has no `args` key, so `$HOME` is expanded by `/bin/sh` at run time.
-That makes the file portable across machines, users and Node versions.
+This config deliberately wires up **no hooks and no statusline**. It previously drove the GSD
+("get-shit-done") setup — nine hooks across `SessionStart`, `PreToolUse` and `PostToolUse`, plus a
+`gsd-statusline.js` footer. GSD has been removed, so all of that is gone.
 
-It previously hardcoded `/Users/bach/...` and a pinned `.nvm/versions/node/v25.9.0/bin/node`, so
-every hook silently failed on any other machine or after any Node upgrade. **Don't reintroduce
-absolute paths** when refreshing this file from a working machine — re-template them.
+If you add a hook later, **vendor the script it calls into this folder and have the setup script
+copy it**. The GSD wiring was a standing example of the failure mode: `settings.json` referenced
+nine scripts that were never vendored here, so on any fresh machine Claude Code loaded a config
+pointing at files that did not exist. Hook failures aren't surfaced prominently, so it looked
+configured while doing nothing.
+
+Use `$HOME`-relative paths and a `PATH` lookup for the interpreter (`node`, `bash`), never absolute
+paths — Claude Code runs a `command` hook in *shell form* when the entry has no `args` key, so
+`/bin/sh` expands `$HOME` at run time.
 
 ## Manual steps to finish the restore
 
-1. **Install Claude Code**, then run the Mac setup script (copies the files above).
-2. **Reinstall the GSD setup** ("get-shit-done"). `settings.json` wires up several GSD hooks that
-   are NOT vendored here (they belong to GSD): `gsd-check-update.js`, `gsd-session-state.sh`,
-   `gsd-context-monitor.js`, `gsd-read-injection-scanner.js`, `gsd-phase-boundary.sh`,
-   `gsd-prompt-guard.js`, `gsd-read-guard.js`, `gsd-workflow-guard.js`, `gsd-validate-commit.sh`.
-   Reinstalling GSD restores these into `~/.claude/hooks/`. The setup script tells you exactly
-   which ones are missing.
-3. **Re-enable plugins** (already listed in `settings.json` → `enabledPlugins`):
+1. **Install Claude Code**, then run the Mac setup script (copies the file above).
+2. **Re-enable plugins** (already listed in `settings.json` → `enabledPlugins`):
    - `github@claude-plugins-official`
    - `agent-sdk-dev@claude-plugins-official`
 
@@ -48,3 +40,10 @@ absolute paths** when refreshing this file from a working machine — re-templat
 No tokens or API keys are stored here. If you ever add secrets to `~/.claude/settings.json`
 (e.g. under `env`), do **not** copy them into this public repo — template them out first. The same
 goes for machine-specific paths: use `$HOME` or a `PATH` lookup, never `/Users/<name>/...`.
+
+## Note: this snapshot has drifted
+
+The live `~/.claude/settings.json` on this machine no longer matches what is vendored here — it has
+moved on to a different plugin set (the `dotnet-agent-skills` marketplace), a `theme`, and
+Supacode's surface-tracking hooks, and it dropped `effortLevel`, `env` and the statusline. Re-capture
+this file from a working machine when you next touch it, minus any secrets.

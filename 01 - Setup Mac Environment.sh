@@ -153,34 +153,15 @@ else
 	echo "WARNING: nvim not found - skipping plugin install (the Brewfile installs neovim)." >&2
 fi
 
-# Restore Claude Code customizations (settings + statusline footer + hooks).
-# settings.json uses `node` from PATH and "$HOME/.claude/hooks/..." rather than absolute paths,
-# so it is portable across machines and Node versions - see ClaudeCode/README.md.
-# The GSD hooks themselves are NOT vendored here (they belong to the get-shit-done setup), so
-# warn loudly if they are missing instead of leaving Claude Code silently hookless.
+# Restore Claude Code customizations (settings only).
+# settings.json carries no machine-specific paths and no hooks - the GSD ("get-shit-done") setup
+# that owned them was removed, see ClaudeCode/README.md. Keep it that way: anything referencing
+# $HOME/.claude/hooks/... needs the matching script vendored here, or it fails silently at runtime.
 if [ -d "$HOME/.claude" ]; then
 	if [ -f "$HOME/.claude/settings.json" ]; then
 		cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.backup"
 	fi
 	cp ClaudeCode/settings.json "$HOME/.claude/settings.json"
-	mkdir -p "$HOME/.claude/hooks"
-	cp ClaudeCode/hooks/* "$HOME/.claude/hooks/" 2>/dev/null || true
-
-	# Every hook command in settings.json must resolve, or it fails silently at runtime.
-	missing_hooks=""
-	for hook in gsd-check-update.js gsd-session-state.sh gsd-context-monitor.js \
-		gsd-read-injection-scanner.js gsd-phase-boundary.sh gsd-prompt-guard.js \
-		gsd-read-guard.js gsd-workflow-guard.js gsd-validate-commit.sh gsd-statusline.js; do
-		[ -f "$HOME/.claude/hooks/$hook" ] || missing_hooks="$missing_hooks $hook"
-	done
-	if [ -n "$missing_hooks" ]; then
-		echo "WARNING: Claude Code hooks referenced by settings.json are missing from ~/.claude/hooks:" >&2
-		for hook in $missing_hooks; do echo "           - $hook" >&2; done
-		echo "         Reinstall the GSD setup to restore them (see ClaudeCode/README.md)." >&2
-	fi
-	if ! command -v node >/dev/null 2>&1; then
-		echo "WARNING: 'node' is not on PATH - the Claude Code hooks and statusline will not run." >&2
-	fi
 fi
 
 # Restore Pi coding agent customizations (settings + custom provider/model catalog + local

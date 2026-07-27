@@ -4,15 +4,37 @@ Backup of my Claude Code (`~/.claude`) customizations so they can be restored af
 
 ## Files
 
-- `settings.json` — my Claude Code config: model (`opus[1m]`), `effortLevel`, enabled plugins, and
-  an experimental feature flag in `env`. Contains **no secrets** and **no machine-specific paths**.
+- `settings.json` — my Claude Code config: model (`opus[1m]`), `effortLevel`, the
+  `dotnet-agent-skills` plugin marketplace, the plugins enabled from it, and an experimental
+  feature flag in `env`. Contains **no secrets** and **no machine-specific paths**.
 
 ## What the Mac setup script does
 
 `01 - Setup Mac Environment.sh` backs up any existing `~/.claude/settings.json` to
-`settings.json.backup`, then copies `settings.json` into `~/.claude`.
+`settings.json.backup`, then copies `settings.json` into `~/.claude`. Claude Code resolves the
+declared marketplace and plugins itself on next launch — the same pattern as Pi's declared packages.
 
-## No hooks are configured
+## Skills and plugins come from upstream, not from here
+
+Nothing in this folder vendors skill or plugin *content*. Three separate sources feed Claude Code,
+and each is owned elsewhere:
+
+| Source | Reaches Claude Code via | Also used by |
+| --- | --- | --- |
+| [`dotnet/skills`](https://github.com/dotnet/skills) | the `dotnet-agent-skills` marketplace declared in `settings.json` (Claude Code clones it into `~/.claude/plugins/marketplaces/`) | **Pi** — the setup script clones the *same repo* to `~/pi-skills/dotnet-skills` |
+| Supacode | Supacode installs its own skills and its surface-tracking hooks when it is installed (Homebrew cask, root `Brewfile`) | — |
+| [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills) (private) | `scripts/install-local.sh`, run by the setup script | Pi |
+
+Two consequences worth remembering:
+
+- **`dotnet/skills` is cloned twice on this machine**, once by the setup script for Pi and once by
+  Claude Code for the marketplace. They are independent copies at independent commits. That is
+  expected, not a bug — but if you change how one is pinned, the other does not follow.
+- **Supacode's hooks are deliberately not vendored here.** The live `~/.claude/settings.json` has
+  eight `SUPACODE_SURFACE_ID` hooks that Supacode writes itself. Copying them into this repo would
+  fight with Supacode on every launch.
+
+## No hooks are configured here
 
 This config deliberately wires up **no hooks and no statusline**. It previously drove the GSD
 ("get-shit-done") setup — nine hooks across `SessionStart`, `PreToolUse` and `PostToolUse`, plus a
@@ -31,19 +53,18 @@ paths — Claude Code runs a `command` hook in *shell form* when the entry has n
 ## Manual steps to finish the restore
 
 1. **Install Claude Code**, then run the Mac setup script (copies the file above).
-2. **Re-enable plugins** (already listed in `settings.json` → `enabledPlugins`):
-   - `github@claude-plugins-official`
-   - `agent-sdk-dev@claude-plugins-official`
+2. **Launch Claude Code once** so it fetches the `dotnet-agent-skills` marketplace and installs the
+   enabled plugins. Verify with `/plugin`.
+
+## Not captured here, on purpose
+
+The live `~/.claude/settings.json` also carries `theme`, `skipDangerousModePermissionPrompt` and
+Supacode's hooks. `theme` is cosmetic, the permission-prompt setting is security-relevant enough to
+be an explicit per-machine choice rather than something a setup script turns on silently, and the
+hooks belong to Supacode. Add them deliberately if you decide you want them everywhere.
 
 ## Security
 
 No tokens or API keys are stored here. If you ever add secrets to `~/.claude/settings.json`
 (e.g. under `env`), do **not** copy them into this public repo — template them out first. The same
 goes for machine-specific paths: use `$HOME` or a `PATH` lookup, never `/Users/<name>/...`.
-
-## Note: this snapshot has drifted
-
-The live `~/.claude/settings.json` on this machine no longer matches what is vendored here — it has
-moved on to a different plugin set (the `dotnet-agent-skills` marketplace), a `theme`, and
-Supacode's surface-tracking hooks, and it dropped `effortLevel`, `env` and the statusline. Re-capture
-this file from a working machine when you next touch it, minus any secrets.

@@ -168,15 +168,16 @@ the Windows installer — install it manually from the Monaspace releases or via
   version-pinned) — along with the Mason LSPs/formatters (auto-installed on first launch).
   Any existing config is backed up to `~/.config/nvim.backup-<timestamp>`. See `nvim/README.md`.
 - **Claude Code:** my `~/.claude` customizations are captured in `ClaudeCode/` for restore after a
-  reinstall — see `ClaudeCode/README.md`. `settings.json` holds the model, effort level, enabled
-  plugins and an experimental flag; it carries **no hooks, no statusline, no secrets and no
-  machine-specific paths**. The GSD ("get-shit-done") setup that previously supplied nine hooks and
-  a statusline footer has been removed.
+  reinstall — see `ClaudeCode/README.md`. `settings.json` holds the model, effort level, the
+  `dotnet-agent-skills` plugin marketplace and the plugins enabled from it, plus an experimental
+  flag; it carries **no hooks, no statusline, no secrets and no machine-specific paths**. The GSD
+  ("get-shit-done") setup that previously supplied nine hooks and a statusline footer has been
+  removed. Claude Code fetches the marketplace and installs the plugins itself on next launch.
 - **Pi:** non-secret Pi settings, custom provider/model catalog, and local extensions are captured
   in `Pi/` and restored by the setup script. Repository-managed skills are instead cloned from the
-  private AI-Skills repository at its pinned release; the upstream dotnet skills remain cloned into
-  `~/pi-skills/`. Declared packages install on first `pi` launch; no secrets are vendored (`/login`
-  per provider afterwards). See `Pi/README.md`.
+  private AI-Skills repository at its pinned release; the upstream dotnet and Aspire skills are
+  cloned into `~/pi-skills/`. Declared packages install on first `pi` launch; no secrets are
+  vendored (`/login` per provider afterwards). See `Pi/README.md`.
 - **AI coding agents:** the script installs three terminal CLIs — **GitHub Copilot CLI**
   (`gh.io/copilot-install`) and **Claude Code** (`claude.ai/install.sh`) as standalone binaries in
   `~/.local/bin`, and **Pi** (`@earendil-works/pi-coding-agent`) as an npm global. Each needs a
@@ -188,6 +189,23 @@ the Windows installer — install it manually from the Monaspace releases or via
   (`npm i -g hunkdiff`, needs Node 18+). Use `hunk diff` to review the working tree (including
   untracked files), `hunk diff --watch` to auto-reload as it changes, and `hunk show [rev]` to
   review a commit. Docs: [hunk.dev](https://hunk.dev).
+
+### Agent skills — who installs what
+
+Skill and plugin *content* is never vendored in this repository; it is always pulled from upstream.
+Three sources feed the agents, and one of them feeds two agents through different mechanisms:
+
+| Source | Pi | Claude Code |
+| --- | --- | --- |
+| [`dotnet/skills`](https://github.com/dotnet/skills) | cloned by the setup script to `~/pi-skills/dotnet-skills` | the `dotnet-agent-skills` plugin marketplace declared in `ClaudeCode/settings.json`; Claude Code clones it into `~/.claude/plugins/` |
+| [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) | cloned to `~/pi-skills/aspire-skills` | — |
+| [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills) (private) | registered as a local Pi package at a pinned tag | — |
+| Supacode | — | Supacode installs its own skills **and** its surface-tracking hooks when it is installed via the [`Brewfile`](Brewfile) |
+
+So `dotnet/skills` ends up cloned **twice** on a machine — once for Pi by the setup script, once for
+Claude Code by Claude Code itself. They are independent checkouts at independent commits; that is
+expected, but pinning one does not pin the other. Supacode's contributions are deliberately left
+out of `ClaudeCode/settings.json`, since vendoring them would fight with Supacode on every launch.
 
 ### Personal AI skills
 

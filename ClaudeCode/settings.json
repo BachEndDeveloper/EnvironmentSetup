@@ -3,7 +3,26 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEMAS": "1"
   },
   "model": "opus[1m]",
+  "extraKnownMarketplaces": {
+    "dotnet-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "dotnet/skills"
+      }
+    }
+  },
   "enabledPlugins": {
+    "dotnet-advanced@dotnet-agent-skills": true,
+    "dotnet11@dotnet-agent-skills": true,
+    "dotnet@dotnet-agent-skills": true,
+    "dotnet-data@dotnet-agent-skills": true,
+    "dotnet-nuget@dotnet-agent-skills": true,
+    "dotnet-upgrade@dotnet-agent-skills": true,
+    "dotnet-ai@dotnet-agent-skills": true,
+    "dotnet-template-engine@dotnet-agent-skills": true,
+    "dotnet-test-migration@dotnet-agent-skills": true,
+    "dotnet-test@dotnet-agent-skills": true,
+    "dotnet-aspnetcore@dotnet-agent-skills": true,
     "github@claude-plugins-official": true,
     "agent-sdk-dev@claude-plugins-official": true
   },

@@ -209,6 +209,49 @@ repository provisions, so the pattern is being invented rather than followed.
 `MCP/` directory with one config fragment per server is likely to age better
 than appending entries into each host's settings file.
 
+### Survey of the live wiring (2026-07-27)
+
+Inspected before designing anything. All three of these are machine-local and
+captured nowhere in this repository:
+
+| Host | File | State |
+| --- | --- | --- |
+| Pi | `~/.pi/agent/mcp.json` | `{"imports": ["claude-code", "claude-desktop"], "mcpServers": {}}` |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` | declares `m365-personal-productivity` |
+| Claude Code | `~/.claude.json` | identical entry at top level |
+
+Three findings that shape the design:
+
+1. **Pi imports rather than declares.** It pulls MCP servers from the Claude Code
+   and Claude Desktop configs, so provisioning only has to write those two and
+   Pi follows. That is a good existing pattern - keep it, do not add a third
+   declaration for Pi.
+2. **The same absolute-path bug this repo just fixed in `ClaudeCode/settings.json`
+   is present here, untouched.** Both host configs invoke the server as:
+
+   ```
+   command: /Users/martinbach/.nvm/versions/node/v24.16.0/bin/node
+   args:    [/Users/martinbach/source/m365-personal-productivity-mcp/dist/index.js]
+   ```
+
+   A pinned Node version and a hardcoded home directory - it breaks on any other
+   machine and on the next `nvm install --lts`. Whatever provisioning is written
+   must emit `node` from `PATH` and a `$HOME`-relative path.
+3. **There is org-specific config to template.** Both entries carry a `TENANT_ID`
+   env value. This repository is public, so it must be templated the way
+   `Pi/models.json` templates `YOUR-FOUNDRY-RESOURCE` - never vendored verbatim.
+
+The server itself is `github.com/BachEndDeveloper/m365-mcp` (tag `v0.1.0`
+exists), checked out at `~/source/m365-personal-productivity-mcp`, npm name
+`m365-mcp`, `bin: m365-mcp -> dist/index.js`, scripts `build` / `auth` /
+`doctor` / `dev` / `start`. Its `.env` is correctly git-ignored.
+
+**Risk to weigh before implementing:** `~/.claude.json` is ~73 KB and holds far
+more than MCP config (project history and session state). Provisioning must do a
+surgical merge of the `mcpServers` key and preserve everything else - a
+write-whole-file approach would destroy live state. Claude Desktop's config is
+small and safe by comparison.
+
 ## 9. Pinned versions have no inventory — LOW
 
 Pins are scattered across files:
@@ -335,12 +378,28 @@ broken script implies coverage that does not exist.
       hardening from Phase A stays in place, but nobody should assume it has been
       exercised on real Windows.
 
-### Phase F — MCP provisioning pattern
+### Phase F — MCP provisioning pattern 🟡 surveyed, not implemented
 
-- [ ] Choose where MCP config lives, designed for several servers
+The live wiring has been surveyed - see the table and the three findings under
+finding 8. Remaining work, in order:
+
+- [ ] Choose where MCP config lives, designed for several servers.
+      Proposal: an `MCP/` directory holding one declarative entry per server
+      (repo URL, pinned tag, build command, env template), with the setup script
+      materialising the two host configs from it. Pi needs nothing - it imports
+      from those two.
 - [ ] Add `m365-personal-productivity-mcp` as the first, mirroring the
       AI-Skills clone-at-pinned-tag block
-- [ ] Document `npm run auth` alongside the existing per-provider `/login` steps
+      (`github.com/BachEndDeveloper/m365-mcp`, tag `v0.1.0`), including
+      `npm ci && npm run build` after checkout.
+- [ ] Emit `node` from `PATH` and `$HOME`-relative paths, **not** the pinned
+      `/Users/martinbach/.nvm/versions/node/v24.16.0/bin/node` currently in both
+      host configs - same bug class as finding 3.
+- [ ] Template `TENANT_ID`; never vendor the real value into this public repo.
+- [ ] Merge surgically into `~/.claude.json` (73 KB of live session state) -
+      only the `mcpServers` key, preserving everything else. Back it up first.
+- [ ] Document `npm run auth` alongside the existing per-provider `/login` steps,
+      and `npm run doctor` for diagnosis.
 
 ---
 

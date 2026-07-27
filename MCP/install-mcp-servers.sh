@@ -21,7 +21,10 @@ set -euo pipefail
 
 cd -- "$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd -P)"
 MANIFEST="servers.json"
-[ -f "$MANIFEST" ] || { echo "ERROR: $MANIFEST not found next to this script." >&2; exit 1; }
+[ -f "$MANIFEST" ] || {
+	echo "ERROR: $MANIFEST not found next to this script." >&2
+	exit 1
+}
 
 DESKTOP_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
 PI_MCP_CONFIG="$HOME/.pi/agent/mcp.json"
@@ -36,11 +39,15 @@ fi
 echo "Using node: $NODE_BIN"
 
 server_count="$(python3 -c 'import json,sys; print(len(json.load(open("servers.json"))["servers"]))')"
-[ "$server_count" -gt 0 ] || { echo "No MCP servers declared - nothing to do."; exit 0; }
+[ "$server_count" -gt 0 ] || {
+	echo "No MCP servers declared - nothing to do."
+	exit 0
+}
 
 for i in $(seq 0 $((server_count - 1))); do
 	# Read one server's fields as shell-safe assignments.
-	eval "$(python3 - "$i" <<'PY'
+	eval "$(
+		python3 - "$i" <<'PY'
 import json, shlex, sys, os
 s = json.load(open("servers.json"))["servers"][int(sys.argv[1])]
 d = os.path.expandvars(s["dir"])
@@ -65,7 +72,10 @@ PY
 		continue
 	else
 		mkdir -p "$(dirname "$SRV_DIR")"
-		git clone "$SRV_REPO" "$SRV_DIR" || { echo "WARNING: could not clone $SRV_NAME - skipping." >&2; continue; }
+		git clone "$SRV_REPO" "$SRV_DIR" || {
+			echo "WARNING: could not clone $SRV_NAME - skipping." >&2
+			continue
+		}
 	fi
 
 	if ! git -C "$SRV_DIR" checkout --detach "$SRV_REF" >/dev/null 2>&1; then
@@ -74,7 +84,7 @@ PY
 	fi
 
 	# --- build
-	if ! ( cd "$SRV_DIR" && eval "$SRV_BUILD" ); then
+	if ! (cd "$SRV_DIR" && eval "$SRV_BUILD"); then
 		echo "WARNING: build failed for $SRV_NAME - leaving it unregistered." >&2
 		continue
 	fi
@@ -86,7 +96,8 @@ PY
 	fi
 
 	# --- the host entry, built once and reused by both registrations
-	SERVER_JSON="$(python3 - "$i" "$NODE_BIN" "$ENTRY_PATH" <<'PY'
+	SERVER_JSON="$(
+		python3 - "$i" "$NODE_BIN" "$ENTRY_PATH" <<'PY'
 import json, os, sys
 s = json.load(open("servers.json"))["servers"][int(sys.argv[1])]
 env = dict(s.get("env") or {})

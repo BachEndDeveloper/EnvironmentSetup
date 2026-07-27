@@ -8,7 +8,6 @@
 #   brew bundle cleanup --file="Brewfile"
 
 # --- Taps ---
-tap "azure/functions"
 tap "azure/azd"
 tap "azure/bicep"
 tap "jandedobbeleer/oh-my-posh"
@@ -39,6 +38,9 @@ brew "neovim"             # editor (LazyVim)
 brew "uv"                 # Python toolchain / version manager
 
 # --- Azure / cloud ---
+# NOTE: azure-functions-core-tools@4 was removed along with the azure/functions tap - Homebrew
+# refuses to load formulae from untrusted third-party taps, which broke `brew bundle` entirely.
+# Re-add with `brew tap azure/functions && brew trust azure/functions` if you need Functions again.
 brew "azure-cli"
 brew "azure-functions-core-tools@4", link: true
 brew "azd"
@@ -58,5 +60,5 @@ cask "hiddenbar"
 
 # --- Fonts ---
 cask "font-monaspace"             # Monaspace Neon (editors)
-cask "font-monaspace-nerd-font"   # MonaspiceNe Nerd Font (terminals)
+cask "font-monaspice-nerd-font"   # MonaspiceNe Nerd Font (terminals) - renamed upstream from font-monaspace-nerd-font
 cask "font-monaspace-frozen"      # Monaspace Frozen (static TTFs, all stylistic sets on — for Rider/Xcode)

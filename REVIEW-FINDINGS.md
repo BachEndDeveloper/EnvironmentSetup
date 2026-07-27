@@ -195,7 +195,11 @@ and copies a `.zshrc`. No AI tooling, no Neovim, no VS Code config, no skills.
 note that WSL is unsupported. Combined with finding 1, retiring is the lower
 effort path unless WSL is actively used.
 
-## 8. No MCP server provisioning — LOW, forward-looking
+## 8. No MCP server provisioning — LOW, forward-looking ✅ resolved 2026-07-27
+
+**Resolved.** `MCP/servers.json` declares the servers and
+`MCP/install-mcp-servers.sh` provisions them; the setup script calls it. See
+Phase F. The description below is the state at the time of the review.
 
 The only match for "mcp" anywhere is `npm:pi-mcp-adapter` in
 `Pi/settings.json`. No MCP server is installed or configured by any script.
@@ -378,28 +382,52 @@ broken script implies coverage that does not exist.
       hardening from Phase A stays in place, but nobody should assume it has been
       exercised on real Windows.
 
-### Phase F — MCP provisioning pattern 🟡 surveyed, not implemented
+### Phase F — MCP provisioning pattern ✅ done 2026-07-27
 
-The live wiring has been surveyed - see the table and the three findings under
-finding 8. Remaining work, in order:
+The live wiring was surveyed first - see the table and the three findings under
+finding 8. All of them shaped the result.
 
-- [ ] Choose where MCP config lives, designed for several servers.
-      Proposal: an `MCP/` directory holding one declarative entry per server
-      (repo URL, pinned tag, build command, env template), with the setup script
-      materialising the two host configs from it. Pi needs nothing - it imports
-      from those two.
-- [ ] Add `m365-personal-productivity-mcp` as the first, mirroring the
+- [x] Choose where MCP config lives, designed for several servers
+      — `MCP/servers.json` is a declarative manifest; `MCP/install-mcp-servers.sh`
+      is the only code. Adding server two or three is a data change.
+- [x] Add `m365-personal-productivity-mcp` as the first, mirroring the
       AI-Skills clone-at-pinned-tag block
-      (`github.com/BachEndDeveloper/m365-mcp`, tag `v0.1.0`), including
+      — `github.com/BachEndDeveloper/m365-mcp` at `v0.1.0`, with
       `npm ci && npm run build` after checkout.
-- [ ] Emit `node` from `PATH` and `$HOME`-relative paths, **not** the pinned
-      `/Users/martinbach/.nvm/versions/node/v24.16.0/bin/node` currently in both
-      host configs - same bug class as finding 3.
-- [ ] Template `TENANT_ID`; never vendor the real value into this public repo.
-- [ ] Merge surgically into `~/.claude.json` (73 KB of live session state) -
-      only the `mcpServers` key, preserving everything else. Back it up first.
-- [ ] Document `npm run auth` alongside the existing per-provider `/login` steps,
-      and `npm run doctor` for diagnosis.
+- [x] Emit `node` from `PATH` and `$HOME`-relative paths, **not** a pinned nvm
+      binary
+      — with a correction the survey missed: the generated host config genuinely
+      *needs* an absolute interpreter path, because GUI hosts such as Claude
+      Desktop launch with a minimal `PATH` and cannot find an nvm-managed `node`.
+      That is almost certainly why the original hardcoded path existed. The fix
+      is therefore *resolve at install time*, not *avoid absolute paths*: the
+      repository stays generic and the machine-local config is regenerated on
+      every run. Documented that re-running after `nvm install --lts` is required.
+- [x] Template `TENANT_ID`; never vendor the real value
+      — better than templating: the server ships `config.defaults.json` with a
+      non-secret tenant id, so the host `env` block is empty by default. An
+      override is read from `M365_TENANT_ID` in the environment.
+- [x] Merge surgically into `~/.claude.json`, preserving everything else
+      — **avoided entirely.** Claude Code exposes `claude mcp add-json --scope
+      user`, so its config is mutated by its own CLI and this repository never
+      writes that file. Only Claude Desktop's config is edited directly: small,
+      configuration-only, `mcpServers` key only, `.backup` written first.
+- [x] Document `npm run auth` and `npm run doctor`
+      — the installer prints the sign-in step per server; `MCP/README.md` covers
+      verification.
+
+**Verified by execution** against a sandbox `HOME` with a stubbed `claude` CLI:
+run 1 clones, builds, registers both hosts and prints the auth step; run 2 is
+idempotent (`already up to date` / `already registered`); an unrelated
+`globalShortcut` key and an unrelated server in the Claude Desktop config both
+survive the merge; the backup is written; the checkout lands on `v0.1.0`; and the
+only Claude Code mutation is a single `claude mcp add-json ... --scope user`
+call. `bash -n` and `shellcheck` are clean.
+
+**Not verified:** the installer has not been run against the real `HOME` on this
+machine, so the live Claude Desktop and Claude Code configs are untouched so far.
+The existing hand-made entries there still carry the pinned
+`v24.16.0` node path until it is run for real.
 
 ---
 

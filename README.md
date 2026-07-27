@@ -207,6 +207,35 @@ Claude Code by Claude Code itself. They are independent checkouts at independent
 expected, but pinning one does not pin the other. Supacode's contributions are deliberately left
 out of `ClaudeCode/settings.json`, since vendoring them would fight with Supacode on every launch.
 
+### MCP servers
+
+The [MCP](https://modelcontextprotocol.io/) servers this machine runs are declared in
+[`MCP/servers.json`](MCP/servers.json) and installed by `MCP/install-mcp-servers.sh`, which the
+setup script calls. Each is cloned at a pinned tag, built, and registered with the MCP hosts.
+Adding another server is a data change in `servers.json`, not a code change.
+
+Only two hosts are registered, because **Pi imports from them** — `~/.pi/agent/mcp.json` is
+`{"imports": ["claude-code", "claude-desktop"]}`, so it picks up whatever those two know about:
+
+- **Claude Desktop** — its config is merged directly (small, configuration-only), touching only the
+  `mcpServers` key and writing a `.backup` first.
+- **Claude Code** — registered through its own `claude mcp add-json --scope user` CLI.
+  `~/.claude.json` is **never** hand-edited: it holds ~73 KB of live project and session state, and
+  a whole-file write would destroy it.
+
+The generated host configs need an absolute `node` path, because GUI hosts launch with a minimal
+`PATH` and cannot find an nvm-managed Node. That path is resolved at install time rather than
+hardcoded in this repository — so **re-run the installer after `nvm install --lts`** to repoint it.
+
+No secrets or tenant ids live here. To override the M365 tenant on a machine:
+
+```sh
+M365_TENANT_ID=<your-tenant-id> bash "01 - Setup Mac Environment.sh"
+```
+
+Each server prints its own one-time sign-in step (for m365, `npm run auth`) at the end of its
+install. See [`MCP/README.md`](MCP/README.md) for the full pattern.
+
 ### Personal AI skills
 
 Personal skills live in the private [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills)

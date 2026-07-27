@@ -90,7 +90,11 @@ Do this **after** finding 1, since enabling `-e` on a script that currently
 tolerates failures will surface latent breakage — which is the point, but it is
 easier to interpret one script at a time.
 
-## 3. Hardcoded foreign user and Node version — HIGH
+## 3. Hardcoded foreign user and Node version — HIGH ✅ fixed 2026-07-27
+
+**Fixed.** `settings.json` now uses `node` from `PATH` and
+`"$HOME/.claude/hooks/<name>"`; there are zero machine-specific paths left. See
+Phase C. The description below is the state at the time of the review.
 
 `ClaudeCode/settings.json` contains 16 absolute-path references belonging to a
 different machine, spread across 10 distinct hook scripts (9 hook command entries
@@ -110,15 +114,13 @@ validation hooks silently do nothing.
 rather than accidental. But a documented manual step that is easy to forget and
 silent when skipped is a poor guard for something restored on every new machine.
 
-**Fix:** replace the absolute node path with plain `node` (relying on `PATH`,
-which the setup script already configures via nvm), and replace `/Users/bach`
-with `$HOME` or Claude Code's own variable if it supports one. If `settings.json`
-cannot take variables, generate it from a template during setup —
-`sed "s|__HOME__|$HOME|g"` — the same way `models.json` already templates
-`YOUR-FOUNDRY-RESOURCE`.
-
-That last point matters: the repository already has a templating convention for
-exactly this problem. This file simply does not use it.
+**Fix (applied):** replaced the absolute node path with plain `node` (relying on
+`PATH`, which the setup script already configures via nvm), and `/Users/bach`
+with `$HOME`. A setup-time template (`sed "s|__HOME__|$HOME|g"`, the way
+`models.json` templates `YOUR-FOUNDRY-RESOURCE`) turned out to be unnecessary:
+Claude Code runs a `command` hook in *shell form* when the entry has no `args`
+key, so `/bin/sh` expands `$HOME` at run time. Using `$HOME` keeps the vendored
+file and the installed file identical, which is simpler than templating.
 
 ## 4. Referenced hooks are not vendored — MEDIUM
 
@@ -253,13 +255,28 @@ as one branch per phase, following the small-commits workflow.
       macOS/Windows until this is done
 - [ ] Gate on `bash -n` passing
 
-### Phase C — De-hardcode the Claude Code config
+### Phase C — De-hardcode the Claude Code config ✅ done 2026-07-27
 
-- [ ] Replace absolute node paths with `node`
-- [ ] Replace `/Users/bach` with `$HOME`, or template it during setup as
+- [x] Replace absolute node paths with `node`
+      — all 9 hook commands now call `node` from `PATH`, matching what
+      `statusLine` already did. No Node version is pinned anywhere.
+- [x] Replace `/Users/bach` with `$HOME`, or template it during setup as
       `models.json` already does
-- [ ] Add a post-restore check that warns about missing GSD hooks
+      — used `$HOME` directly rather than a setup-time template: Claude Code runs
+      a `command` hook in *shell form* when the entry has no `args` key, so
+      `/bin/sh` expands `$HOME` at run time. Verified the expansion resolves to
+      this machine's home. Zero `/Users/bach` references remain and the file is
+      still valid JSON.
+- [x] Add a post-restore check that warns about missing GSD hooks
+      — the macOS script now checks all 10 referenced hooks after the copy and
+      lists the missing ones on stderr, plus a warning if `node` is absent.
+      Exercised against a hooks directory containing only the vendored
+      statusline: it correctly reported the 9 GSD hooks as missing.
 - [ ] Verify on this machine that hooks actually fire after the change
+      — **still open, and blocked on finding 4**: the GSD hooks are not installed
+      here at all (`~/.claude/hooks/` has none of them), so there is nothing to
+      fire yet. Reinstall GSD, then confirm the statusline renders and a
+      `PostToolUse` hook produces its side effect.
 
 ### Phase D — Documentation consistency 🟡 partly done
 

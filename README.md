@@ -138,7 +138,10 @@ the Windows installer — install it manually from the Monaspace releases or via
   version-pinned) — along with the Mason LSPs/formatters (auto-installed on first launch).
   Any existing config is backed up to `~/.config/nvim.backup-<timestamp>`. See `nvim/README.md`.
 - **Claude Code:** my `~/.claude` customizations (settings + statusline footer) are captured in
-  `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`.
+  `ClaudeCode/` for restore after a reinstall — see `ClaudeCode/README.md`. `settings.json` uses
+  `node` from `PATH` and `$HOME`-relative hook paths, so it carries no machine-specific values;
+  after restoring, the setup script warns if any hook it references is missing (the GSD hooks are
+  not vendored here).
 - **Pi:** non-secret Pi settings, custom provider/model catalog, and local extensions are captured
   in `Pi/` and restored by the setup script. Repository-managed skills are instead cloned from the
   private AI-Skills repository at its pinned release; the upstream dotnet skills remain cloned into

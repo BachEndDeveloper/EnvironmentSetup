@@ -14,9 +14,6 @@ fi
 # brew bundle is idempotent and reports failures loudly; --upgrade also updates what's installed.
 brew bundle --upgrade --file="Brewfile"
 
-# azure-functions-core-tools@4: ensure it's linked even when upgrading from an older major.
-brew link --overwrite --quiet azure-functions-core-tools@4 2>/dev/null || true
-
 # --- Languages & runtimes ---
 
 # Node via nvm, defaulting to LTS (.zshrc loads nvm; install nvm here if missing).

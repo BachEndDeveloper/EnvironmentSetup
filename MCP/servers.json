@@ -1,0 +1,17 @@
+{
+  "_comment": "Declarative list of MCP servers this machine provisions. Adding a second or third server should be a data change here, not a code change in the installer. Registration targets Claude Desktop and Claude Code only - Pi imports from both (see ~/.pi/agent/mcp.json), so it needs no entry of its own.",
+  "servers": [
+    {
+      "name": "m365-personal-productivity",
+      "repo": "https://github.com/BachEndDeveloper/m365-mcp.git",
+      "ref": "v0.1.0",
+      "dir": "$HOME/source/m365-personal-productivity-mcp",
+      "build": ["npm ci", "npm run build"],
+      "entry": "dist/index.js",
+      "postInstall": "npm run auth",
+      "doctor": "npm run doctor",
+      "env": {},
+      "_envNote": "Deliberately empty. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs with no host env block. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead."
+    }
+  ]
+}

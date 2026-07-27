@@ -172,8 +172,12 @@ admin-consent request for three still-ungranted scopes
 (`OnlineMeetingTranscript.Read.All`, `OnlineMeetings.Read`,
 `ChannelMessage.Read.All`), which opens a second browser window.
 
+- [x] Document the sign-in step beside Pi's `/login` steps — it is the same class
+      of one-time interactive act. Done in `Pi/README.md` "After setup".
 - [ ] If provisioning is ever run unattended, use
       `npm run auth -- --skip-pending` so it cannot block on a prompt.
+      Consider whether the installer should pass that automatically, since it
+      has no way to know whether a human is watching.
 
 The two requests are deliberately separate: Entra consent is all-or-nothing per
 request, so folding the ungranted scopes into the main sign-in would return no

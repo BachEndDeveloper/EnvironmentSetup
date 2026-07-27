@@ -245,15 +245,39 @@ as one branch per phase, following the small-commits workflow.
       — *nothing is committed yet; the Phase A hardening and the round-1 fixes
       are one undifferentiated working-tree change and still need splitting*
 
-### Phase B — Ubuntu/WSL: fix or retire ⛔ blocked on a decision
+### Phase B — Ubuntu/WSL: deferred 2026-07-27 — stale, revive later
 
-- [ ] Decide: is WSL still a target?
-- [ ] If retiring: delete the script, note it in the README
-- [ ] If fixing: repair the `then` syntax error; correct font paths to Linux
-      locations; fix the `Font/` typo; remove every `| echo`
-- [ ] If fixing: add `set -euo pipefail` — finding 2 is only closed for
-      macOS/Windows until this is done
-- [ ] Gate on `bash -n` passing
+**Decision:** neither fixed nor deleted for now. Windows/WSL is not a day-to-day
+machine, so the script stays in the repo as a starting point, clearly marked
+broken. It has **never executed successfully** — do not run it expecting results.
+
+What has to be fixed to revive it (each verified against the current file):
+
+- [ ] **Syntax error, line 4** — `if ! command -v brew &> /dev/null then` is
+      missing a `;` or newline before `then`. This alone makes the whole file
+      unparseable (`bash -n` → rc 2), so nothing below has ever run.
+- [ ] **macOS paths on Linux** — it copies fonts to `/Library/Fonts` and
+      `~/Library/Fonts`, which do not exist on Ubuntu. Use
+      `/usr/share/fonts` or `~/.local/share/fonts`, and run `fc-cache -f`.
+- [ ] **Typo** — `cp Font/CascadiaCodeNF/*`; the directory is `Fonts/`.
+- [ ] **Remove every `| echo`** — `brew install $1 | echo "Installed $1"` pipes
+      output *into* `echo`, which ignores stdin and prints unconditionally, so
+      every step reports success whether or not it worked. There are 4 of these.
+- [ ] **Add `set -euo pipefail`** — finding 2 is only closed for macOS/Windows
+      until this is done.
+- [ ] **Decide on Homebrew-on-Linux at all.** The script installs Linuxbrew and
+      then installs `zsh`, `git`, `terraform`, `azure-cli`, `exa` through it.
+      On Ubuntu, `apt` + the vendors' own repos is the lower-friction path, and
+      `exa` is unmaintained (use `eza`, as the macOS Brewfile already does).
+- [ ] **Bring it to parity, or scope it down explicitly.** It currently has no
+      AI tooling, no Neovim, no VS Code config and no skills bootstrap. Either
+      port the macOS blocks or state in the README that WSL is shell-only.
+- [ ] **Back up before overwriting** — it does `cp Zsh/.zshrc $HOME` with no
+      backup, unlike the macOS script.
+- [ ] Gate on `bash -n` passing, then run it once in a throwaway container.
+
+If it is still untouched next time this list is reviewed, retire it instead — a
+broken script implies coverage that does not exist.
 
 ### Phase C — De-hardcode the Claude Code config ✅ done 2026-07-27
 

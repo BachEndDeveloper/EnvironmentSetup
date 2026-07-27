@@ -4,14 +4,16 @@ Scripts, fonts and profiles for setting up a new machine to my specs.
 
 - macOS: `01 - Setup Mac Environment.sh` (Homebrew-based) — **actively maintained**
 - Windows: `01 - Setup Windows environment.ps1` (winget-based) — **stale, see below**
-- WSL/Ubuntu: `01 - Setup Ubuntu Environment WSL.sh` — **broken, does not run**
+- WSL/Ubuntu: `01 - Setup Ubuntu Environment WSL.sh` — **broken, never run successfully**
 
 > **Only the macOS script is actively maintained.** I no longer work on Windows machines, so the
 > PowerShell script is stale: it has been hardened and statically verified, but it has not been run
 > on a real Windows machine in a long time, and it provisions none of the AI tooling the macOS
 > script does (no Node/nvm, no Pi, Claude Code or Copilot CLI, no skills bootstrap). It also still
 > installs .NET SDK 6 and 7, both out of support. Treat it as a starting point that needs a rework
-> and a real test run before trusting it. The WSL/Ubuntu script is worse — it has never run at all.
+> and a real test run before trusting it. The WSL/Ubuntu script is worse — it has a syntax error on
+> line 4 and has therefore never executed at all; see
+> [Reviving the WSL/Ubuntu script](#reviving-the-wslubuntu-script).
 
 ## Running the setup
 
@@ -99,6 +101,34 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 This installs the winget packages and bundled fonts, copies the Windows Terminal / PowerShell /
 VS Code configs, and prompts for your Git username/email and optional QMK tooling. Afterwards, open
 JetBrains Toolbox to install Rider/DataGrip, then set the Rider fonts manually.
+
+### Reviving the WSL/Ubuntu script
+
+`01 - Setup Ubuntu Environment WSL.sh` is **kept for reference only and must not be run as-is**. It
+has a syntax error, so it has never executed successfully — `bash -n` fails on it today. It is not
+deleted because WSL may come back; if it hasn't been revived by the next review, retire it instead,
+because a broken script implies coverage that doesn't exist.
+
+To bring it back, in roughly this order:
+
+1. **Fix the syntax error on line 4** — `if ! command -v brew &> /dev/null then` needs a `;` or a
+   newline before `then`. Nothing below this line has ever run. Gate on `bash -n` passing.
+2. **Remove every `| echo`** — `brew install $1 | echo "Installed $1"` pipes output *into* `echo`,
+   which ignores stdin and prints unconditionally, so every step reports success regardless of
+   what happened. There are four of these.
+3. **Fix the Linux font paths** — it copies to `/Library/Fonts` and `~/Library/Fonts`, which are
+   macOS locations. Use `/usr/share/fonts` or `~/.local/share/fonts`, then `fc-cache -f`. Also fix
+   the `cp Font/CascadiaCodeNF/*` typo (the directory is `Fonts/`).
+4. **Add `set -euo pipefail`**, as the macOS script now has.
+5. **Reconsider Homebrew on Linux** — it installs Linuxbrew just to get `zsh`, `git`, `terraform`,
+   `azure-cli` and `exa`. `apt` plus the vendors' own repos is less friction, and `exa` is
+   unmaintained (the macOS Brewfile already moved to `eza`).
+6. **Decide the scope explicitly** — it currently has no AI tooling, no Neovim, no VS Code config
+   and no skills bootstrap. Either port those blocks from the macOS script, or say here that WSL is
+   deliberately shell-only.
+7. **Back up before overwriting** — it copies `.zshrc` over the existing one with no backup.
+
+The full list, with line references, is in `REVIEW-FINDINGS.md` (finding 1 and Phase B).
 
 ## Fonts
 

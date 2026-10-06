@@ -8,7 +8,7 @@ came out of using it from the **server side** — the `m365-mcp` repository — 
 **Nothing here is a redesign.** The pattern holds. These are four concrete
 defects and one open decision, ordered by whether they actually break something.
 
-**Status:** drafted 2026-07-27 · nothing in this plan has been implemented.
+**Status:** drafted 2026-07-27 · items 1 and 2 done on 2026-10-06 (`feat/skills-v0.4.0`); item 3 is still an open decision; item 4 deliberately deferred.
 
 ---
 
@@ -63,7 +63,9 @@ The HTTPS clone succeeds today only because the developer machine already has
 machine this clone prompts for credentials or fails outright — and the
 installer's `|| continue` turns that into a `WARNING` the user scrolls past.
 
-- [ ] Change `repo` to `git@github.com:BachEndDeveloper/m365-mcp.git`.
+- [x] Change `repo` to `git@github.com:BachEndDeveloper/m365-mcp.git`. *Matches AI-Skills. Note the
+      machine this was done on has no GitHub SSH key and clones both repos over HTTPS from the
+      keychain; an existing checkout fetches from its own `origin`, so it is unaffected.*
 - [ ] Consider whether the installer should distinguish "clone failed because
       auth" from other clone failures. The AI-Skills block names the SSH key
       explicitly in its warning; this one says only "could not clone".
@@ -87,8 +89,10 @@ installer's `|| continue` turns that into a `WARNING` the user scrolls past.
 A machine provisioned today gets the release whose `read_resource` cannot read a
 calendar event. `v0.3.0` is current.
 
-- [ ] Bump `ref` to `v0.3.0`.
-- [ ] Note in `MCP/README.md` that bumping a server is a `servers.json` data
+- [x] Bump `ref` — to **`v0.4.0`** rather than `v0.3.0`, since `v0.4.0` (2026-10-06) adds the
+      `m365-tools` skill, transcripts, availability and several search fixes. Verified from a fresh
+      clone: builds and serves 33 tools.
+- [x] Note in `MCP/README.md` that bumping a server is a `servers.json` data
       change plus a re-run, so the upgrade path is written down once.
 
 ---
@@ -115,6 +119,11 @@ tree is not where it was left, and the failure is confusing rather than loud.
 The installer already refuses a directory that exists and is *not* a git
 checkout — the genuinely ambiguous case. A checkout sitting on a branch is the
 same class of ambiguity and is currently not detected.
+
+**Still open, and now concrete:** with `ref` at `v0.4.0`, a setup re-run on the development
+machine detaches `~/source/m365-personal-productivity-mcp` from `main` onto the tag. Today the tag
+and `main` are the same commit, so nothing changes but the HEAD state — that stops being true at the
+next commit to `main`.
 
 Pick one:
 

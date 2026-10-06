@@ -3,13 +3,18 @@
   "servers": [
     {
       "name": "m365-personal-productivity",
-      "repo": "https://github.com/BachEndDeveloper/m365-mcp.git",
-      "ref": "v0.1.0",
+      "repo": "git@github.com:BachEndDeveloper/m365-mcp.git",
+      "ref": "v0.4.0",
       "dir": "$HOME/source/m365-personal-productivity-mcp",
-      "build": ["npm ci", "npm run build"],
+      "build": [
+        "npm ci",
+        "npm run build"
+      ],
       "entry": "dist/index.js",
       "postInstall": "npm run auth",
       "doctor": "npm run doctor",
+      "piPackage": true,
+      "_piPackageNote": "Registers the checkout as a Pi package so the m365-tools skill it ships under skills/ is loaded. Claude hosts do not take packages; m365-martin tells them where to read the skill.",
       "env": {},
       "_envNote": "Deliberately empty. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs with no host env block. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead."
     }

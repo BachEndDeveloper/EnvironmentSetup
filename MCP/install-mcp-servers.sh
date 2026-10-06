@@ -58,6 +58,7 @@ print(f'SRV_DIR={shlex.quote(d)}')
 print(f'SRV_ENTRY={shlex.quote(s["entry"])}')
 print(f'SRV_POST={shlex.quote(s.get("postInstall", ""))}')
 print(f'SRV_BUILD={shlex.quote(" && ".join(s.get("build", [])))}')
+print(f'SRV_PI_PACKAGE={"true" if s.get("piPackage") else "false"}')
 PY
 	)"
 
@@ -148,6 +149,18 @@ PY
 		fi
 	else
 		echo "WARNING: 'claude' CLI not found - $SRV_NAME not registered with Claude Code." >&2
+	fi
+
+	# --- skills the server ships (e.g. m365-tools): register the checkout as a Pi package,
+	# the same way the setup script registers AI-Skills. Tolerant, like the rest of this loop.
+	if [ "$SRV_PI_PACKAGE" = "true" ]; then
+		if ! command -v pi >/dev/null 2>&1; then
+			echo "WARNING: 'pi' not found - $SRV_NAME skills not registered with Pi." >&2
+		elif pi install "$SRV_DIR" >/dev/null 2>&1; then
+			echo "  Pi: $SRV_NAME skills registered as a local package"
+		else
+			echo "WARNING: 'pi install $SRV_DIR' failed - register its skills manually." >&2
+		fi
 	fi
 
 	if [ -n "$SRV_POST" ]; then

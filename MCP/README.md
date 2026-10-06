@@ -70,12 +70,21 @@ Append to `servers.json`:
   "build": ["npm ci", "npm run build"],
   "entry": "dist/index.js",
   "postInstall": "npm run auth",
+  "piPackage": false,
   "env": {}
 }
 ```
 
 `dir` is expanded with `$HOME`, `ref` is checked out detached (pin a tag, not a branch), and `entry`
 is relative to the checkout. Re-run `bash MCP/install-mcp-servers.sh`.
+
+Set `"piPackage": true` when the server ships agent skills (a `pi` manifest in its `package.json`):
+the installer then runs `pi install <dir>` so Pi loads them, exactly as the setup script does for
+AI-Skills. m365-mcp uses this for its `m365-tools` skill. Claude hosts have no package mechanism; the
+`m365-martin` skill in AI-Skills tells them where to read `m365-tools` instead.
+
+**Upgrading a server** is a data change: bump `ref` here and re-run the installer. A machine whose
+checkout already exists fetches tags and moves to the new ref.
 
 ## Behaviour
 

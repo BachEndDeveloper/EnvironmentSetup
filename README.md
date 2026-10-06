@@ -211,21 +211,21 @@ out of `ClaudeCode/settings.json`, since vendoring them would fight with Supacod
 
 The [MCP](https://modelcontextprotocol.io/) servers this machine runs are declared in
 [`MCP/servers.json`](MCP/servers.json) and installed by `MCP/install-mcp-servers.sh`, which the
-setup script calls. Each is cloned at a pinned tag, built, and registered with the MCP hosts.
+setup script calls. Each is kept as a deployment copy at a pinned tag (under `~/.local/share/mcp/`,
+never a working checkout), built, and registered with all three MCP hosts.
 Adding another server is a data change in `servers.json`, not a code change.
 
-Only two hosts are registered, because **Pi imports from them** — `~/.pi/agent/mcp.json` is
-`{"imports": ["claude-code", "claude-desktop"]}`, so it picks up whatever those two know about:
+Each host is registered through the mechanism it owns:
 
 - **Claude Desktop** — its config is merged directly (small, configuration-only), touching only the
   `mcpServers` key and writing a `.backup` first.
 - **Claude Code** — registered through its own `claude mcp add-json --scope user` CLI.
   `~/.claude.json` is **never** hand-edited: it holds ~73 KB of live project and session state, and
   a whole-file write would destroy it.
+- **Pi** — registered through its own `pi mcp add`, using Pi's built-in MCP support.
 
-The generated host configs need an absolute `node` path, because GUI hosts launch with a minimal
-`PATH` and cannot find an nvm-managed Node. That path is resolved at install time rather than
-hardcoded in this repository — so **re-run the installer after `nvm install --lts`** to repoint it.
+Every host launches servers through `~/.local/bin/mcp-node`, which follows nvm's `default` alias, so
+upgrading or removing a Node version does not break a host. See [`MCP/README.md`](MCP/README.md).
 
 No secrets or tenant ids live here. To override the M365 tenant on a machine:
 

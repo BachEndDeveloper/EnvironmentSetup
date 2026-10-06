@@ -14,7 +14,7 @@ Backup of the non-secret [Pi](https://pi.dev) configuration restored on a new ma
 2. It copies this directory's `settings.json`, `models.json`, and local extensions into `~/.pi/agent/`.
 3. Earlier in the script, it clones the private AI-Skills repository at its pinned tag and registers it as a Pi package. That package is the sole source for repository-managed skills.
 4. It clones the upstream dotnet and Aspire skills repositories into `~/pi-skills/`, because this configuration references both paths.
-5. It provisions the MCP servers declared in [`../MCP/servers.json`](../MCP/servers.json). Pi needs no entry of its own — `~/.pi/agent/mcp.json` imports from Claude Code and Claude Desktop, so registering with those two hosts is enough.
+5. It provisions the MCP servers declared in [`../MCP/servers.json`](../MCP/servers.json) and registers each with Pi's **built-in** MCP support through `pi mcp add`, alongside Claude Desktop and Claude Code. `pi-mcp-adapter` is deliberately not in `settings.json`: it replaces the built-in support while installed.
 
 No skill directory is copied from this repository into `~/.agents/skills` or `~/.pi/agent/skills`.
 
@@ -25,14 +25,14 @@ No skill directory is copied from this repository into `~/.agents/skills` or `~/
 3. **Sign in to each MCP server that needs it.** This is the same class of one-time interactive step as `/login` above — the setup script provisions the servers but deliberately stores no tokens. For the m365 server:
 
    ```sh
-   cd ~/source/m365-personal-productivity-mcp
+   cd ~/.local/share/mcp/m365-mcp
    npm run auth     # browser sign-in; then offers to request admin consent
    npm run doctor   # confirm before relying on it
    ```
 
    `npm run auth` performs the normal sign-in and then **asks whether to submit an admin-consent request** for scopes the tenant has not granted, which opens a second browser window. That second window will not return a token — that is the expected outcome, since the point is Entra's approval screen. Use `npm run auth -- --skip-pending` to never be asked, which is what an unattended run wants.
 
-   Pi sees these servers without any configuration of its own: `~/.pi/agent/mcp.json` imports from Claude Code and Claude Desktop. See [../MCP/README.md](../MCP/README.md).
+   That directory is the deployment copy the hosts run, not a development checkout; the token it creates is stored per user, so it also covers any working copy you develop in. Check `pi mcp list` to confirm Pi connected. See [../MCP/README.md](../MCP/README.md).
 4. Pi installs declared packages automatically on first launch; use `pi update --extensions` to force reconciliation.
 5. Update personal or shared skills only in the AI-Skills repository. Update the hardcoded tag in `01 - Setup Mac Environment.sh` when adopting a reviewed release.
 

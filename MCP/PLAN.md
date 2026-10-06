@@ -8,7 +8,7 @@ came out of using it from the **server side** — the `m365-mcp` repository — 
 **Nothing here is a redesign.** The pattern holds. These are four concrete
 defects and one open decision, ordered by whether they actually break something.
 
-**Status:** drafted 2026-07-27 · items 1 and 2 done on 2026-10-06 (`feat/skills-v0.4.0`); item 3 is still an open decision; item 4 deliberately deferred.
+**Status:** drafted 2026-07-27 · items 1 and 2 done on 2026-10-06 (`feat/skills-v0.4.0`); item 3 decided as option (a) and done; item 4 deliberately deferred.
 
 ---
 
@@ -120,14 +120,20 @@ The installer already refuses a directory that exists and is *not* a git
 checkout — the genuinely ambiguous case. A checkout sitting on a branch is the
 same class of ambiguity and is currently not detected.
 
-**Still open, and now concrete:** with `ref` at `v0.4.0`, a setup re-run on the development
-machine detaches `~/source/m365-personal-productivity-mcp` from `main` onto the tag. Today the tag
-and `main` are the same commit, so nothing changes but the HEAD state — that stops being true at the
-next commit to `main`.
+**Decided 2026-10-06: option (a).** `dir` is now `$HOME/.local/share/mcp/m365-mcp`, a
+deployment-only copy. The installer refuses a checkout that is on a branch, so pointing `dir` back at
+a working copy fails loudly instead of detaching it. Two consequences were handled with it:
+
+- The email signature was only looked for next to the code, so the deployment copy would have sent
+  mail unsigned. m365-mcp `v0.4.1` reads it from the per-user data directory, beside the token
+  cache, which every copy shares.
+- Claude Code was found registered against a removed Node (`v24.16.0`, `ENOENT`). Every host now
+  launches through `~/.local/bin/mcp-node`, and the installer re-registers instead of leaving an
+  existing entry as-is.
 
 Pick one:
 
-- [ ] **(a) Separate the deployment checkout from the development one.** Point
+- [x] **(a) Separate the deployment checkout from the development one.** Point
       `dir` at something like `$HOME/.local/share/mcp/m365-mcp`, so provisioning
       never touches a working tree. Costs a second clone on a dev machine;
       removes the whole category of problem.

@@ -227,10 +227,10 @@ if [ ! -d "$PI_SKILLS_DIR/aspire-skills" ]; then
 	git clone https://github.com/microsoft/aspire-skills.git "$PI_SKILLS_DIR/aspire-skills" || echo "WARNING: failed to clone microsoft/aspire-skills." >&2
 fi
 
-# MCP servers declared in MCP/servers.json. The installer clones each at its pinned ref,
-# builds it, and registers it with Claude Desktop and Claude Code. Pi needs nothing - it
-# imports from both (see ~/.pi/agent/mcp.json). Failures warn rather than abort: a missing
-# MCP server should not cost you the rest of the setup.
+# MCP servers declared in MCP/servers.json. The installer keeps a deployment copy of each at
+# its pinned ref (never a working checkout), builds it, and registers it with Claude Desktop,
+# Claude Code and Pi's built-in MCP support. Failures warn rather than abort: a missing MCP
+# server should not cost you the rest of the setup.
 bash MCP/install-mcp-servers.sh || echo "WARNING: MCP provisioning failed - see MCP/README.md." >&2
 
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

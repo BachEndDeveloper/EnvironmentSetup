@@ -6,12 +6,12 @@
   "defaultThinkingLevel": "high",
   "packages": [
     "npm:pi-web-access",
-    "npm:pi-mcp-adapter",
     "npm:context-mode",
     "npm:pi-subagents",
     "npm:pi-lens",
     "npm:@hypabolic/pi-hypa",
-    "npm:pi-powerline-footer"
+    "npm:pi-powerline-footer",
+    "npm:hunkdiff"
   ],
   "skills": [
     "~/pi-skills/dotnet-skills/plugins",

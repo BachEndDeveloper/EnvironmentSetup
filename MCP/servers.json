@@ -1,17 +1,28 @@
 {
-  "_comment": "Declarative list of MCP servers this machine provisions. Adding a second or third server should be a data change here, not a code change in the installer. Registration targets Claude Desktop and Claude Code only - Pi imports from both (see ~/.pi/agent/mcp.json), so it needs no entry of its own.",
+  "_comment": "Declarative list of MCP servers this machine provisions. Adding a second or third server should be a data change here, not a code change in the installer. Each server is registered with Claude Desktop, Claude Code and Pi (built-in MCP), all launching through ~/.local/bin/mcp-node.",
   "servers": [
     {
       "name": "m365-personal-productivity",
-      "repo": "https://github.com/BachEndDeveloper/m365-mcp.git",
-      "ref": "v0.1.0",
-      "dir": "$HOME/source/m365-personal-productivity-mcp",
-      "build": ["npm ci", "npm run build"],
+      "repo": "git@github.com:BachEndDeveloper/m365-mcp.git",
+      "ref": "v0.4.1",
+      "dir": "$HOME/.local/share/mcp/m365-mcp",
+      "build": [
+        "npm ci",
+        "npm run build"
+      ],
       "entry": "dist/index.js",
+      "description": "Martin's personal Microsoft 365: Outlook calendar and mail (read + draft/create), Teams chat, SharePoint files, meeting transcripts",
       "postInstall": "npm run auth",
       "doctor": "npm run doctor",
+      "piPackage": true,
+      "_piPackageNote": "Registers the checkout as a Pi package so the m365-tools skill it ships under skills/ is loaded. Claude hosts do not take packages; m365-martin tells them where to read the skill.",
+      "supersedes": [
+        "m365"
+      ],
+      "_supersedesNote": "Older host keys for this same server, removed from every host on install so a machine does not end up with two registrations. 'm365' is the name this server had in Pi's mcp.json before the installer managed Pi.",
       "env": {},
-      "_envNote": "Deliberately empty. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs with no host env block. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead."
+      "_envNote": "Deliberately empty. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs with no host env block. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead.",
+      "_dirNote": "A deployment-only copy that the installer moves between tags. Never point this at the checkout you develop in: the installer refuses a checkout that is on a branch, and hosts would otherwise run whatever you last built. Develop in ~/source/... as usual; ship by tagging and bumping ref."
     }
   ]
 }

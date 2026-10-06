@@ -1,0 +1,15 @@
+#!/bin/bash
+# Stable node launcher for MCP servers: follows nvm's `default` alias,
+# so removing a specific nvm version never breaks Claude Desktop.
+NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+ALIAS_FILE="$NVM_DIR/alias/default"
+NODE_BIN=""
+if [ -r "$ALIAS_FILE" ]; then
+  V="$(cat "$ALIAS_FILE")"
+  [ -x "$NVM_DIR/versions/node/$V/bin/node" ] && NODE_BIN="$NVM_DIR/versions/node/$V/bin/node"
+fi
+if [ -z "$NODE_BIN" ]; then
+  NODE_BIN="$(ls -d "$NVM_DIR"/versions/node/v* 2>/dev/null | sort -V | tail -1)/bin/node"
+fi
+[ -x "$NODE_BIN" ] || NODE_BIN="$(command -v node)"
+exec "$NODE_BIN" "$@"

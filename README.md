@@ -236,6 +236,11 @@ M365_TENANT_ID=<your-tenant-id> bash "01 - Setup Mac Environment.sh"
 Each server prints its own one-time sign-in step (for m365, `npm run auth`) at the end of its
 install. See [`MCP/README.md`](MCP/README.md) for the full pattern.
 
+The m365 server's two capability gates — `ALLOW_SEND` and `ALLOW_DELETE`, both default-off — are set
+in `MCP/servers.json`, never in a host's own config: the installer rebuilds each host `env` block
+from that file and drops anything added by hand. See
+[Capability gates](MCP/README.md#capability-gates).
+
 ### Personal AI skills
 
 Personal skills live in the private [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills)

@@ -4,14 +4,14 @@
     {
       "name": "m365-personal-productivity",
       "repo": "git@github.com:BachEndDeveloper/m365-mcp.git",
-      "ref": "v0.4.1",
+      "ref": "v0.5.0",
       "dir": "$HOME/.local/share/mcp/m365-mcp",
       "build": [
         "npm ci",
         "npm run build"
       ],
       "entry": "dist/index.js",
-      "description": "Martin's personal Microsoft 365: Outlook calendar and mail (read + draft/create), Teams chat, SharePoint files, meeting transcripts",
+      "description": "Martin's personal Microsoft 365: Outlook calendar and mail (read + draft/create), Teams chat, SharePoint files, meeting transcripts, and mailbox organisation (categories, folders, filing)",
       "postInstall": "npm run auth",
       "doctor": "npm run doctor",
       "piPackage": true,
@@ -20,8 +20,10 @@
         "m365"
       ],
       "_supersedesNote": "Older host keys for this same server, removed from every host on install so a machine does not end up with two registrations. 'm365' is the name this server had in Pi's mcp.json before the installer managed Pi.",
-      "env": {},
-      "_envNote": "Deliberately empty. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs with no host env block. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead.",
+      "env": {
+        "ALLOW_DELETE": "false"
+      },
+      "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs without a tenant override. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead. ALLOW_DELETE is stated explicitly even though false is already the server default: the installer writes the host env block from this file alone, so a value set by hand in a host's mcp.json is silently dropped on the next run. Record the intended posture here, not in the host. Set it to 'true' to register delete_category and delete_mail_folder and allow moving mail into Deleted Items - each still requires the server's preview-and-confirm_action approval flow. ALLOW_SEND is deliberately absent: enabling sending is a per-host decision, not a machine-wide one.",
       "_dirNote": "A deployment-only copy that the installer moves between tags. Never point this at the checkout you develop in: the installer refuses a checkout that is on a branch, and hosts would otherwise run whatever you last built. Develop in ~/source/... as usual; ship by tagging and bumping ref."
     }
   ]

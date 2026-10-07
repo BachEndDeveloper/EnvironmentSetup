@@ -55,9 +55,26 @@ re-run the installer.
 
 ## Secrets and org-specific values
 
-Nothing secret is stored here. `servers.json` carries an empty `env` block on purpose: the m365
-server ships a `config.defaults.json` with a non-secret tenant id, so a fresh clone runs with no host
-`env` block at all.
+Nothing secret is stored here. The m365 server ships a `config.defaults.json` with a non-secret
+tenant id, so a fresh clone needs no tenant override in `servers.json`.
+
+### Capability gates
+
+The m365 server has two independent opt-in switches, both default-off:
+
+| Gate | Default | Effect when `true` |
+| --- | --- | --- |
+| `ALLOW_SEND` | `false` | Registers `send_draft`, `send_mail`, `delete_event`, `prepare_meeting_invite`, `send_meeting_invite`, and lets calendar writes attach attendees. |
+| `ALLOW_DELETE` | `false` | Registers `delete_category` and `delete_mail_folder`, and allows `move_emails` into Deleted Items. |
+
+With both off the server exposes 44 of its 51 tools. Enabling `ALLOW_DELETE` does not make deletes
+unattended: each one still stages a preview and a one-time token that only `confirm_action` spends.
+
+**Set these in `servers.json`, not in a host's config.** The installer rebuilds each host's `env`
+block from `servers.json` alone, so a value typed by hand into `~/.pi/agent/mcp.json` or a Claude
+config is silently dropped on the next run. `ALLOW_DELETE` is stated explicitly there even though
+`false` is already the server default, so the intended posture survives a re-install and is visible
+in review.
 
 To override the tenant on a given machine, export it before running setup — it is read from the
 environment and never committed:

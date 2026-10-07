@@ -187,7 +187,7 @@ fi
 # This runs after Pi settings are restored so `pi install` records the package persistently.
 # Update the repository URL or release tag here when the personal library moves or releases.
 AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
-AI_SKILLS_REF="v0.4.0"
+AI_SKILLS_REF="v0.5.0"
 AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
 
 if [[ -d "$AI_SKILLS_DIR/.git" ]]; then

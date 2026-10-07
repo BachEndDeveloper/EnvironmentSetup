@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+#
+# nvm-update-lts — install/refresh the latest Node LTS with nvm, carry over the
+# global npm packages from a previous version, and make it the default.
+#
+# Usage:
+#   nvm-update-lts                     # from = currently active version
+#   nvm-update-lts 24.19.0             # from = v24.19.0
+#   nvm-update-lts --from lts/jod
+#   nvm-update-lts --lts jod           # track a specific LTS line (default -> lts/jod)
+#   nvm-update-lts --dry-run
+#   nvm-update-lts --no-default        # don't touch the `default` alias
+#
+# The `default` alias is set to `lts/*` (or `lts/<codename>` with --lts), not a
+# pinned version, so new shells follow future LTS releases of that line.
+# Re-running when everything is already current is a no-op.
+#
+# Handles the common "oops, I forgot --reinstall-packages-from" case: if the
+# target version is already installed, it just replays the global packages into
+# it instead of reinstalling Node.
+
+set -eo pipefail
+
+# --- pretty output ---------------------------------------------------------
+if [ -t 1 ]; then
+  B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; C=$'\033[36m'; N=$'\033[0m'
+else
+  B=''; G=''; Y=''; R=''; C=''; N=''
+fi
+info() { printf '%s==>%s %s\n' "$C" "$N" "$*"; }
+ok()   { printf '%s  ✓%s %s\n' "$G" "$N" "$*"; }
+warn() { printf '%s  !%s %s\n' "$Y" "$N" "$*" >&2; }
+die()  { printf '%s  ✗%s %s\n' "$R" "$N" "$*" >&2; exit 1; }
+
+usage() { sed -n '2,/^$/s/^# \{0,1\}//p' "$0"; exit "${1:-0}"; }
+
+# --- args ------------------------------------------------------------------
+FROM_INPUT=""
+LTS_LINE=""          # empty = latest LTS line
+DRY_RUN=0
+SET_DEFAULT=1
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help)     usage 0 ;;
+    --dry-run)     DRY_RUN=1 ;;
+    --no-default)  SET_DEFAULT=0 ;;
+    --from)        FROM_INPUT="${2:?--from needs a version}"; shift ;;
+    --from=*)      FROM_INPUT="${1#*=}" ;;
+    --lts)         LTS_LINE="${2:?--lts needs a codename}"; shift ;;
+    --lts=*)       LTS_LINE="${1#*=}" ;;
+    -*)            die "unknown option: $1 (try --help)" ;;
+    *)             [ -n "$FROM_INPUT" ] && die "too many arguments"; FROM_INPUT="$1" ;;
+  esac
+  shift
+done
+
+run() {
+  if [ "$DRY_RUN" = 1 ]; then
+    printf '%s  (dry-run)%s %s\n' "$Y" "$N" "$*"
+  else
+    "$@"
+  fi
+}
+
+# --- load nvm (it's a shell function, not a binary) ------------------------
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] || die "nvm not found at $NVM_DIR/nvm.sh (set NVM_DIR?)"
+set +u
+# shellcheck disable=SC1091
+\. "$NVM_DIR/nvm.sh" --no-use
+command -v nvm >/dev/null || die "sourced nvm.sh but 'nvm' is still unavailable"
+
+# --- resolve the target LTS version ---------------------------------------
+LTS_SELECTOR="--lts"
+[ -n "$LTS_LINE" ] && LTS_SELECTOR="--lts=$LTS_LINE"
+
+info "Resolving latest LTS (${LTS_LINE:-any line})…"
+TARGET="$(nvm version-remote "$LTS_SELECTOR" 2>/dev/null || true)"
+case "$TARGET" in
+  v*) ;;
+  *)  die "could not resolve remote LTS version (network? bad --lts '$LTS_LINE'?)" ;;
+esac
+ok "Target: ${B}${TARGET}${N}"
+
+# --- resolve the source version to copy packages from ---------------------
+if [ -n "$FROM_INPUT" ]; then
+  FROM="$(nvm version "$FROM_INPUT" 2>/dev/null || true)"
+  case "$FROM" in
+    v*) ;;
+    *)  die "'$FROM_INPUT' is not an installed version (see: nvm ls)" ;;
+  esac
+else
+  FROM="$(nvm current 2>/dev/null || true)"
+  case "$FROM" in
+    v*) ;;
+    *)  FROM="" ;;   # 'none' / 'system'
+  esac
+  # If we're already standing on the target, fall back to the newest other install.
+  if [ "$FROM" = "$TARGET" ]; then
+    FROM="$(nvm ls --no-colors --no-alias 2>/dev/null \
+              | tr -d ' *->' | grep -E '^v[0-9]' | grep -v "^${TARGET}$" | tail -n 1 || true)"
+  fi
+fi
+
+# What `default` should be: follow the moving LTS alias rather than pinning.
+if [ -n "$LTS_LINE" ]; then DEFAULT_ALIAS="lts/$LTS_LINE"; else DEFAULT_ALIAS="lts/*"; fi
+
+list_pkgs() {
+  nvm exec --silent "$1" npm ls -g --depth=0 --parseable 2>/dev/null \
+    | tail -n +2 | sed 's#^.*/node_modules/##' | sort || true
+}
+
+# --- already up to date? ---------------------------------------------------
+# Nothing to do when the target is installed, `default` is already set the way we
+# would set it, and no global package from the source version is missing in it.
+if nvm ls --no-colors "$TARGET" 2>/dev/null | grep -q "$TARGET"; then
+  DEFAULT_OK=1
+  if [ "$SET_DEFAULT" = 1 ]; then
+    [ "$(cat "$NVM_DIR/alias/default" 2>/dev/null || true)" = "$DEFAULT_ALIAS" ] \
+      && [ "$(nvm version default 2>/dev/null || true)" = "$TARGET" ] || DEFAULT_OK=0
+  fi
+  PKGS_OK=1
+  if [ -n "$FROM" ] && [ "$FROM" != "$TARGET" ]; then
+    MISSING_NOW="$(comm -23 <(list_pkgs "$FROM") <(list_pkgs "$TARGET") || true)"
+    [ -z "$MISSING_NOW" ] || PKGS_OK=0
+  fi
+  if [ "$DEFAULT_OK" = 1 ] && [ "$PKGS_OK" = 1 ]; then
+    ok "Already on ${B}${TARGET}${N}, default → ${DEFAULT_ALIAS}, global packages present. Nothing to do."
+    exit 0
+  fi
+fi
+
+if [ -n "$FROM" ] && [ "$FROM" != "$TARGET" ]; then
+  ok "Reinstalling global packages from ${B}${FROM}${N}"
+  PKGS_BEFORE="$(nvm exec --silent "$FROM" npm ls -g --depth=0 --parseable 2>/dev/null \
+                   | tail -n +2 | sed 's#^.*/node_modules/##' | sort || true)"
+  [ -n "$PKGS_BEFORE" ] && printf '     %s\n' $PKGS_BEFORE
+else
+  FROM=""
+  warn "No suitable source version found — installing without package carry-over."
+fi
+
+# --- install / refresh -----------------------------------------------------
+if nvm ls --no-colors "$TARGET" 2>/dev/null | grep -q "$TARGET"; then
+  info "$TARGET is already installed — refreshing it in place."
+  run nvm use "$TARGET" >/dev/null
+  if [ -n "$FROM" ]; then
+    info "nvm reinstall-packages $FROM"
+    run nvm reinstall-packages "$FROM"
+  fi
+  info "Updating npm to the latest supported by $TARGET"
+  run nvm install-latest-npm || warn "install-latest-npm failed — keeping bundled npm"
+else
+  if [ -n "$FROM" ]; then
+    info "nvm install $LTS_SELECTOR --reinstall-packages-from=$FROM --latest-npm"
+    run nvm install "$LTS_SELECTOR" --reinstall-packages-from="$FROM" --latest-npm
+  else
+    info "nvm install $LTS_SELECTOR --latest-npm"
+    run nvm install "$LTS_SELECTOR" --latest-npm
+  fi
+  run nvm use "$TARGET" >/dev/null
+fi
+
+# --- make it the default ---------------------------------------------------
+if [ "$SET_DEFAULT" = 1 ]; then
+  info "Setting default alias → $DEFAULT_ALIAS"
+  run nvm alias default "$DEFAULT_ALIAS" >/dev/null
+  ok "default → $DEFAULT_ALIAS ($(nvm version default 2>/dev/null || echo "$TARGET"))"
+else
+  warn "Left the 'default' alias untouched (--no-default)."
+fi
+
+# --- summary ---------------------------------------------------------------
+if [ "$DRY_RUN" = 1 ]; then
+  printf '\n%sDry run complete — nothing changed.%s\n' "$B" "$N"
+  exit 0
+fi
+
+printf '\n%sResult%s\n' "$B" "$N"
+printf '  node : %s\n' "$(nvm exec --silent "$TARGET" node -v)"
+printf '  npm  : %s\n' "$(nvm exec --silent "$TARGET" npm -v)"
+printf '  default alias: %s\n' "$(nvm version default 2>/dev/null || echo 'unset')"
+
+printf '\n%sGlobal packages in %s%s\n' "$B" "$TARGET" "$N"
+nvm exec --silent "$TARGET" npm ls -g --depth=0 2>/dev/null | tail -n +2
+
+if [ -n "$FROM" ] && [ -n "${PKGS_BEFORE:-}" ]; then
+  PKGS_AFTER="$(nvm exec --silent "$TARGET" npm ls -g --depth=0 --parseable 2>/dev/null \
+                  | tail -n +2 | sed 's#^.*/node_modules/##' | sort || true)"
+  MISSING="$(comm -23 <(printf '%s\n' $PKGS_BEFORE) <(printf '%s\n' $PKGS_AFTER) || true)"
+  if [ -n "$MISSING" ]; then
+    printf '\n'
+    warn "These were in $FROM but did NOT make it across:"
+    printf '     %s\n' $MISSING
+  fi
+fi
+
+printf '\n%sNext%s\n' "$B" "$N"
+printf '  • This shell still runs %s — switch with: %snvm use default%s\n' \
+  "$(node -v 2>/dev/null || echo 'the old version')" "$C" "$N"
+printf '  • New shells pick up %s automatically.\n' "$TARGET"
+[ -n "$FROM" ] && [ "$FROM" != "$TARGET" ] && \
+  printf '  • Once happy, reclaim space: %snvm uninstall %s%s\n' "$C" "$FROM" "$N"

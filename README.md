@@ -263,6 +263,9 @@ The macOS script installs and configures these automatically:
 
 - **Node** — via [nvm](https://github.com/nvm-sh/nvm), defaulting to the latest **LTS**
   (`nvm install --lts`). Install a Current release on demand with `nvm install node`.
+  Update Node later with `nvm-update-lts` (`scripts/nvm-update-lts`, installed to `~/.local/bin` by the
+  setup script): installs the newest LTS, carries global npm packages over and points `default` at
+  `lts/*`. Supports `--dry-run`; see `--help`.
 - **Python** — managed by [uv](https://docs.astral.sh/uv/) (installed as a Homebrew formula).
   `uv python install` provides the latest stable CPython. Pin per project with a `.python-version`
   file or `requires-python`; `uv run` / `uv sync` auto-download the matching version. uv replaces

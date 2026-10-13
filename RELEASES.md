@@ -1,7 +1,8 @@
 # Releases: the unit we run
 
-Every piece of software this setup installs is run **from a release, never from the tip of a
-branch**. A release is an annotated Git tag `vMAJOR.MINOR.PATCH` on `main`. Machines follow the
+Our released repositories (AI-Skills and the Git-deployed MCP servers) run **from a release,
+never from the tip of a branch**. A release is an annotated Git tag `vMAJOR.MINOR.PATCH` on `main`.
+Machines follow the
 **newest release tag** by default, so shipping a change means cutting a release, not editing this
 repository.
 
@@ -10,7 +11,7 @@ repository.
 | Where | Setting | Meaning |
 | --- | --- | --- |
 | `MCP/servers.json`, each server's `ref` | `"latest"` (default) | The highest stable tag, `vX.Y.Z` with no pre-release suffix. |
-| `01 - Setup Mac Environment.sh`, `AI_SKILLS_REF` | `"latest"` (default) | Same rule for the AI-Skills library. |
+| `scripts/install-ai-skills.sh`, `AI_SKILLS_REF` | `"latest"` (default) | Same rule for the AI-Skills library. |
 | Either of the above | an exact tag, e.g. `"v0.6.0"` | **Hold-back pin.** That machine stays on that tag until you change it. |
 
 `scripts/resolve-release.sh` is the only place "latest" is defined. It runs after tags are fetched
@@ -19,7 +20,23 @@ release tag is skipped with a warning, so an unreleased project cannot be instal
 
 **Existing machines do not update themselves.** "Latest" removes the step of editing this
 repository; you still re-run `bash MCP/install-mcp-servers.sh` (MCP servers) or
+`bash scripts/install-ai-skills.sh` (skills for Pi and Claude Code), or
 `bash "01 - Setup Mac Environment.sh"` (everything) to move to a newer release.
+
+AI-Skills is detached in a **deployment-only copy** at `~/.local/share/ai-skills`
+(`AI_SKILLS_DIR` can override it). Pi registers that path; Claude Code symlinks to its `skills/`.
+Existing Pi checkout registrations are removed via `pi remove` after a successful deployed
+install, and old Claude Code links are backed up/replaced. The development checkout at
+`~/source/AI-Skills` remains for development only: setup never fetches, detaches or registers it.
+Branched/dirty deployments are refused. The installer has a migration fallback even when
+installing older skill tags. Relinking alone repairs links but does not update a release.
+
+**External exceptions:** Confluent is a manually installed, approved npm release; Atlassian,
+Datadog and Rovo are provider-controlled remote services. Their private configuration/OAuth/
+restrictions remain machine-local references, not Git deployments or version pins in this public
+repo. The six-server inventory and read-only prerequisite check are in `MCP/README.md`.
+Upstream dotnet/Aspire skills, runtimes and third-party Pi packages retain their existing upstream
+update mechanisms; this contract does not imply they have the same release-copy isolation.
 
 ## The release contract (every released repository)
 
@@ -43,21 +60,40 @@ repository; you still re-run `bash MCP/install-mcp-servers.sh` (MCP servers) or
 
 | Repository | Released? | Gate before tagging | How to release |
 | --- | --- | --- | --- |
-| AI-Skills (private) | Yes | `git diff --check`; review the skill diff | AI-Skills `README.md`, "Releasing" |
+| AI-Skills (private) | Yes | `git diff --check`; review skills; changed scripts: `bash -n`, ShellCheck and sandbox deployment tests | AI-Skills `README.md`, "Releasing" |
 | m365-mcp (private) | Yes | `npm run build && npm test && git diff --check` | m365-mcp `docs/RELEASING.md` |
 | memory-mcp (private) | Yes | `pnpm verify` | memory-mcp `docs/operations.md`, section 5.2 |
 | SystemOneAIMCP (private) | **Not yet.** No release tag and not installed by this setup. | `pnpm verify` | Follows this contract before it is added to `MCP/servers.json`. |
 | DailyDriver (private data) | **No.** It is data, not software: it is cloned and kept current with Git, never versioned or installed. | n/a | Never public (see its README). |
-| EnvironmentSetup (this repo, public) | **No.** It is the bootstrapper, so nothing pins against it; run it from `main`. Everything it installs still follows releases. | `bash -n` on changed scripts | Commit and push to `main`. |
+| EnvironmentSetup (this repo, public) | **No.** It is the bootstrapper, so nothing pins against it; run it from `main`. Managed repositories follow the release-copy contract above; external exceptions are listed above. | `bash -n` on changed scripts, ShellCheck, `git diff --check`, temp-HOME deployment tests | Commit and push to `main`. |
 
 ## Verifying after a release
 
 ```sh
-bash MCP/install-mcp-servers.sh        # prints "<server>: latest -> vX.Y.Z" for each server
+bash MCP/install-mcp-servers.sh        # prints "<server>: latest -> vX.Y.Z" for each Git deployment
 claude mcp list                        # Claude Code's health view
-pi mcp list                            # Pi: connected and tool counts
-git -C ~/.local/share/mcp/<dir> describe --tags   # the deployed tag
+# In interactive Pi: /mcp             # pi-mcp-adapter runtime health
+bash MCP/install-mcp-servers.sh --check-machine-local  # configuration presence, not health
+git -C ~/.local/share/mcp/<dir> describe --tags --exact-match HEAD
+bash scripts/install-ai-skills.sh      # advances release, reconciles both hosts
+git -C ~/.local/share/ai-skills describe --tags --exact-match HEAD
 ```
+
+No scheduler is installed or resumed here; Cowork tasks remain paused pending a separately
+approved replacement. Deploying the released wrappers alone does not make unattended runs safe.
+
+## Sandbox gate (no live changes)
+
+```sh
+python3 scripts/test-deployment.py /path/to/AI-Skills
+```
+
+This uses a temporary HOME and mocked Git/npm/host CLIs to check latest/pinned releases,
+checkout-to-deployment migration, idempotent relinking/registration, guards, all six declarations,
+manual-reference preservation, remote registration and value-safe warnings. It never downloads,
+authenticates, creates tags or starts MCP servers. Run `bash -n` and ShellCheck on changed shell
+scripts and `git diff --check` in both repositories as well. Live installer/health commands above
+are operator follow-ups, not sandbox gates.
 
 ## Holding a machine back
 

@@ -4,7 +4,7 @@
     {
       "name": "m365-personal-productivity",
       "repo": "git@github.com:BachEndDeveloper/m365-mcp.git",
-      "ref": "v0.5.0",
+      "ref": "v0.6.0",
       "dir": "$HOME/.local/share/mcp/m365-mcp",
       "build": [
         "npm ci",
@@ -25,6 +25,32 @@
       },
       "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs without a tenant override. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead. ALLOW_DELETE is stated explicitly even though false is already the server default: the installer writes the host env block from this file alone, so a value set by hand in a host's mcp.json is silently dropped on the next run. Record the intended posture here, not in the host. Set it to 'true' to register delete_category and delete_mail_folder and allow moving mail into Deleted Items - each still requires the server's preview-and-confirm_action approval flow. ALLOW_SEND is deliberately absent: enabling sending is a per-host decision, not a machine-wide one.",
       "_dirNote": "A deployment-only copy that the installer moves between tags. Never point this at the checkout you develop in: the installer refuses a checkout that is on a branch, and hosts would otherwise run whatever you last built. Develop in ~/source/... as usual; ship by tagging and bumping ref."
+    },
+    {
+      "name": "memory",
+      "repo": "git@github.com:BachEndDeveloper/memory-mcp.git",
+      "ref": "v0.1.0",
+      "dir": "$HOME/.local/share/mcp/memory-mcp",
+      "build": [
+        "npx --yes pnpm@11.13.1 install --frozen-lockfile",
+        "npx --yes pnpm@11.13.1 run build"
+      ],
+      "_buildNote": "pnpm is pinned through npx so the build needs only node/npm, not a globally installed pnpm (Node 25+ no longer bundles corepack). Keep the version in step with packageManager in memory-mcp's package.json.",
+      "entry": "dist/index.js",
+      "description": "Martin's second brain: three-tier markdown memory (core, archive, bank) over the local DailyDriver data repo, with a one-way publish path",
+      "hosts": [
+        "pi"
+      ],
+      "_hostsNote": "Pi only, matching how it was registered by hand before. Claude Desktop is planned as a later read surface; widen this list deliberately, since writes are enabled.",
+      "requires": [
+        "$HOME/source/DailyDriver"
+      ],
+      "_requiresNote": "The data repo is never provisioned from here (this repository is public). The installer warns if it is missing; the server refuses to start without it.",
+      "env": {
+        "MEMORY_REPO": "$HOME/source/DailyDriver",
+        "MEMORY_ALLOW_WRITE": "true"
+      },
+      "_envNote": "MEMORY_ALLOW_WRITE=true keeps the posture it had when registered by hand; writes are still staged inside the server. env values are expanded with $HOME by the installer because GUI hosts do not expand variables."
     }
   ]
 }

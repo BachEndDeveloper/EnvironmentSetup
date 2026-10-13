@@ -193,7 +193,7 @@ fi
 # This runs after Pi settings are restored so `pi install` records the package persistently.
 # Update the repository URL or release tag here when the personal library moves or releases.
 AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
-AI_SKILLS_REF="v0.5.0"
+AI_SKILLS_REF="v0.6.0"
 AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
 
 if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
@@ -219,6 +219,14 @@ if ! (
 	bash "$AI_SKILLS_DIR/scripts/install-local.sh" || exit 1
 ); then
 	echo "WARNING: AI-Skills bootstrap failed - check your GitHub SSH key and that tag $AI_SKILLS_REF exists, then re-run." >&2
+fi
+
+# Claude Code reads ~/.claude/skills. Link each AI-Skills skill there (plus m365-tools from the
+# deployed m365-mcp copy) instead of copying, so Claude Code follows the pinned checkout. The
+# script backs up anything it replaces and never touches skills it does not own. m365-tools is
+# linked on a later run if the MCP servers below are not installed yet.
+if [[ -f "$AI_SKILLS_DIR/scripts/link-claude-code.sh" ]]; then
+	bash "$AI_SKILLS_DIR/scripts/link-claude-code.sh" --apply || echo "WARNING: linking AI-Skills into Claude Code failed." >&2
 fi
 
 # External skills referenced by Pi settings.json. Keep upstream-managed skills out of the

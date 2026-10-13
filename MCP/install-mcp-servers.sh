@@ -52,8 +52,10 @@ echo "Hosts will launch servers via: $LAUNCHER"
 # registers with. Warn rather than edit settings: removing a package is the
 # user's call.
 if [ -f "$PI_SETTINGS" ] && grep -q '"npm:pi-mcp-adapter"' "$PI_SETTINGS"; then
-	echo "WARNING: pi-mcp-adapter is installed and replaces Pi's built-in MCP support, so the" >&2
-	echo "         Pi registrations below will not be read. Remove it: pi remove npm:pi-mcp-adapter" >&2
+	echo "NOTE: pi-mcp-adapter is installed and replaces Pi's built-in MCP support. On Pi 0.99+ it" >&2
+	echo "      still reads the registrations below (~/.pi/agent/mcp.json), but it ALSO reads" >&2
+	echo "      ~/.config/mcp/mcp.json - keep server names unique across both, or a stale entry there" >&2
+	echo "      can shadow the deployed copy. Older adapters ignore ~/.pi/agent/mcp.json entirely." >&2
 fi
 
 server_count="$(python3 -c 'import json,sys; print(len(json.load(open("servers.json"))["servers"]))')"
@@ -79,11 +81,26 @@ print(f'SRV_BUILD={shlex.quote(" && ".join(s.get("build", [])))}')
 print(f'SRV_DESC={shlex.quote(s.get("description", ""))}')
 print(f'SRV_PI_PACKAGE={"true" if s.get("piPackage") else "false"}')
 print(f'SRV_SUPERSEDES={shlex.quote(" ".join(s.get("supersedes", [])))}')
+# Hosts to register with; default is all three. Unknown names fail loudly.
+hosts = s.get("hosts", ["claude-desktop", "claude-code", "pi"])
+bad = [h for h in hosts if h not in ("claude-desktop", "claude-code", "pi")]
+if bad:
+    raise SystemExit(f"unknown host(s) {bad} for {s['name']} in servers.json")
+print(f'SRV_HOSTS={shlex.quote(" ".join(hosts))}')
+print(f'SRV_REQUIRES={shlex.quote(chr(10).join(os.path.expandvars(r) for r in s.get("requires", [])))}')
 PY
 	)"
 
 	echo
 	echo "=== MCP server: $SRV_NAME ($SRV_REF) ==="
+
+	# --- paths the server needs but this installer never provisions (e.g. a private data repo).
+	# Warn, but still install: the server itself refuses to start without them.
+	while IFS= read -r required; do
+		[ -n "$required" ] || continue
+		[ -e "$required" ] || echo "WARNING: $SRV_NAME needs $required, which does not exist yet - restore or clone it, then restart the hosts." >&2
+	done <<<"$SRV_REQUIRES"
+	wants_host() { [[ " $SRV_HOSTS " == *" $1 "* ]]; }
 
 	# --- deployment checkout at the pinned ref (mirrors the AI-Skills block in the setup script)
 	if [ -d "$SRV_DIR/.git" ]; then
@@ -127,7 +144,8 @@ PY
 		python3 - "$i" "$LAUNCHER" "$ENTRY_PATH" <<'PY'
 import json, os, sys
 s = json.load(open("servers.json"))["servers"][int(sys.argv[1])]
-env = dict(s.get("env") or {})
+# Expand $HOME and similar here: GUI hosts pass env values through literally.
+env = {k: os.path.expandvars(str(v)) for k, v in (s.get("env") or {}).items()}
 # Optional override, taken from the environment so no real tenant id is ever
 # committed to this public repository.
 if os.environ.get("M365_TENANT_ID") and s["name"].startswith("m365"):
@@ -140,6 +158,9 @@ PY
 	)"
 
 	# --- Claude Desktop: small file, surgical merge, backup first
+	if ! wants_host claude-desktop; then
+		echo "  Claude Desktop: skipped (not in this server's hosts)"
+	else
 	python3 - "$SRV_NAME" "$SERVER_JSON" "$DESKTOP_CONFIG" "$SRV_SUPERSEDES" <<'PY'
 import json, os, shutil, sys
 name, entry, path, superseded = sys.argv[1], json.loads(sys.argv[2]), sys.argv[3], sys.argv[4].split()
@@ -166,10 +187,13 @@ json.dump(cfg, open(path, "w"), indent=2)
 open(path, "a").write("\n")
 print(f"  Claude Desktop: {name} registered" + (f" (removed superseded {', '.join(removed)})" if removed else ""))
 PY
+	fi
 
 	# --- Claude Code: never hand-edited; use its own CLI. Always re-register, so a
 	# changed path or launcher actually lands instead of being "left as-is".
-	if command -v claude >/dev/null 2>&1; then
+	if ! wants_host claude-code; then
+		echo "  Claude Code: skipped (not in this server's hosts)"
+	elif command -v claude >/dev/null 2>&1; then
 		for old in $SRV_SUPERSEDES; do
 			claude mcp remove "$old" --scope user >/dev/null 2>&1 && echo "  Claude Code: removed superseded $old"
 		done
@@ -186,7 +210,9 @@ PY
 
 	# --- Pi: built-in MCP support, through its own CLI. `pi mcp add` replaces an
 	# existing entry of the same name, so this is idempotent.
-	if command -v pi >/dev/null 2>&1; then
+	if ! wants_host pi; then
+		echo "  Pi: skipped (not in this server's hosts)"
+	elif command -v pi >/dev/null 2>&1; then
 		for old in $SRV_SUPERSEDES; do
 			pi mcp remove "$old" >/dev/null 2>&1 && echo "  Pi: removed superseded $old"
 		done
@@ -194,7 +220,8 @@ PY
 			python3 - "$SERVER_JSON" <<'PY'
 import json, shlex, sys
 e = json.loads(sys.argv[1])
-print("PI_ENV_ARGS=(" + " ".join(shlex.quote(f"--env={k}={v}") for k, v in (e.get("env") or {}).items()) + ")")
+# `pi mcp add` takes `--env KEY=VALUE` as two arguments; the `--env=KEY=VALUE` form is rejected.
+print("PI_ENV_ARGS=(" + " ".join(f"--env {shlex.quote(f'{k}={v}')}" for k, v in (e.get("env") or {}).items()) + ")")
 PY
 		)"
 		pi_args=(mcp add "$SRV_NAME")

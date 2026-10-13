@@ -109,6 +109,20 @@ Append to `servers.json`:
 `dir` is expanded with `$HOME`, `ref` is checked out detached (pin a tag, not a branch), and `entry`
 is relative to the checkout. Re-run `bash MCP/install-mcp-servers.sh`.
 
+Optional fields:
+
+- `"hosts"`: which hosts to register with, any of `claude-desktop`, `claude-code`, `pi`. Default is
+  all three. A host left out is skipped; an existing registration there is **not** removed.
+- `"requires"`: paths the server needs but this installer never provisions, such as a private data
+  repository. A missing path prints a `WARNING`; the server is still installed.
+- `env` values are expanded with `$HOME` (and other variables) before they are written to a host,
+  because GUI hosts pass them through literally. Never put a secret in `env` - this repository is
+  public.
+
+The `memory` server (memory-mcp) uses all three: Pi only, its data repo `$HOME/source/DailyDriver`
+under `requires`, and `MEMORY_REPO` pointing at it. The data repository is never cloned by this
+installer.
+
 Set `"piPackage": true` when the server ships agent skills (a `pi` manifest in its `package.json`):
 the installer then runs `pi install <dir>` so Pi loads them, exactly as the setup script does for
 AI-Skills. m365-mcp uses this for its `m365-tools` skill. Claude hosts have no package mechanism; the
@@ -133,4 +147,5 @@ checkout already exists fetches tags and moves to the new ref.
 claude mcp list                                   # Claude Code's view, with health checks
 cd ~/.local/share/mcp/m365-mcp && npm run doctor   # the m365 server's own diagnosis
 pi mcp list                                         # Pi: state and tool count per server
+git -C ~/.local/share/mcp/memory-mcp describe --tags # memory: the deployed tag
 ```

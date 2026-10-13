@@ -29,7 +29,7 @@
     {
       "name": "memory",
       "repo": "git@github.com:BachEndDeveloper/memory-mcp.git",
-      "ref": "v0.1.0",
+      "ref": "v0.2.2",
       "dir": "$HOME/.local/share/mcp/memory-mcp",
       "build": [
         "npx --yes pnpm@11.13.1 install --frozen-lockfile",
@@ -45,12 +45,13 @@
       "requires": [
         "$HOME/source/DailyDriver"
       ],
-      "_requiresNote": "The data repo is never provisioned from here (this repository is public). The installer warns if it is missing; the server refuses to start without it.",
+      "_requiresNote": "DailyDriver is a private GitHub repository (never public). '01 - Setup Mac Environment.sh' clones it and writes ~/.config/memory-mcp/config.json before this installer runs; its content never enters this public repository. The installer warns if it is missing; the server refuses to start without it.",
       "env": {
         "MEMORY_REPO": "$HOME/source/DailyDriver",
-        "MEMORY_ALLOW_WRITE": "true"
+        "MEMORY_ALLOW_WRITE": "true",
+        "MEMORY_REMOTE_ALLOWED": "private-github"
       },
-      "_envNote": "MEMORY_ALLOW_WRITE=true keeps the posture it had when registered by hand; writes are still staged inside the server. env values are expanded with $HOME by the installer because GUI hosts do not expand variables."
+      "_envNote": "MEMORY_ALLOW_WRITE=true keeps the posture it had when registered by hand; writes are still staged inside the server and the gate is only read from here, never from the settings file. MEMORY_REMOTE_ALLOWED=private-github acknowledges DailyDriver's private remote; set here first so the planned server-startup remote guard can ship without breaking hosts. env values are expanded with $HOME by the installer because GUI hosts do not expand variables."
     }
   ]
 }

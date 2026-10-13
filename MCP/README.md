@@ -120,8 +120,9 @@ Optional fields:
   public.
 
 The `memory` server (memory-mcp) uses all three: Pi only, its data repo `$HOME/source/DailyDriver`
-under `requires`, and `MEMORY_REPO` pointing at it. The data repository is never cloned by this
-installer.
+under `requires`, and `MEMORY_REPO` pointing at it. This installer never clones the data repository;
+`01 - Setup Mac Environment.sh` clones the private DailyDriver repo and writes
+`~/.config/memory-mcp/config.json` first (memory-mcp `docs/operations.md`, section 5.1).
 
 Set `"piPackage": true` when the server ships agent skills (a `pi` manifest in its `package.json`):
 the installer then runs `pi install <dir>` so Pi loads them, exactly as the setup script does for

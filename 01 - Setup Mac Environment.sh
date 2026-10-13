@@ -193,7 +193,7 @@ fi
 # This runs after Pi settings are restored so `pi install` records the package persistently.
 # Update the repository URL or release tag here when the personal library moves or releases.
 AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
-AI_SKILLS_REF="v0.6.0"
+AI_SKILLS_REF="v0.6.1"
 AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
 
 if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
@@ -239,6 +239,28 @@ fi
 if [ ! -d "$PI_SKILLS_DIR/aspire-skills" ]; then
 	mkdir -p "$PI_SKILLS_DIR"
 	git clone https://github.com/microsoft/aspire-skills.git "$PI_SKILLS_DIR/aspire-skills" || echo "WARNING: failed to clone microsoft/aspire-skills." >&2
+fi
+
+# DailyDriver: the private data repository behind the memory MCP server. Its content never lives
+# in this (public) repository; only the clone and the memory-mcp settings file are set up here.
+# See memory-mcp docs/operations.md, section 5.1. Runs before the MCP installer so the `memory`
+# server finds its data. Never overwrites an existing checkout or settings file.
+DAILYDRIVER_REPO="git@github.com:BachEndDeveloper/DailyDriver.git"
+DAILYDRIVER_DIR="$HOME/source/DailyDriver"
+if [[ ! -e "$DAILYDRIVER_DIR" ]]; then
+	mkdir -p "$(dirname "$DAILYDRIVER_DIR")"
+	git clone "$DAILYDRIVER_REPO" "$DAILYDRIVER_DIR" \
+		|| { command -v gh >/dev/null 2>&1 && gh repo clone BachEndDeveloper/DailyDriver "$DAILYDRIVER_DIR"; } \
+		|| echo "WARNING: could not clone DailyDriver (check your GitHub SSH key or 'gh auth login') - the memory server will refuse to start until it exists." >&2
+fi
+MEMORY_MCP_CONFIG="$HOME/.config/memory-mcp/config.json"
+if [[ -d "$DAILYDRIVER_DIR/.git" && ! -e "$MEMORY_MCP_CONFIG" ]]; then
+	mkdir -p "$(dirname "$MEMORY_MCP_CONFIG")"
+	# Generated from $HOME at install time. remoteAllowed acknowledges DailyDriver's private
+	# GitHub remote (memory-mcp's remote guard). The write gate is NOT set here: it lives in
+	# MCP/servers.json.
+	(umask 077 && printf '{\n  "memoryRepo": "%s",\n  "remoteAllowed": "private-github"\n}\n' "$DAILYDRIVER_DIR" >"$MEMORY_MCP_CONFIG")
+	echo "Wrote $MEMORY_MCP_CONFIG"
 fi
 
 # MCP servers declared in MCP/servers.json. The installer keeps a deployment copy of each at

@@ -189,11 +189,12 @@ if command -v pi >/dev/null 2>&1 || [ -d "$PI_DIR" ]; then
 	echo "         Remember: 'pi' + /login per provider, and set your Foundry resource in ~/.pi/agent/models.json."
 fi
 
-# Personal AI skills — private, version-pinned source of truth for Pi skills.
+# Personal AI skills — private source of truth for Pi and Claude Code skills.
 # This runs after Pi settings are restored so `pi install` records the package persistently.
-# Update the repository URL or release tag here when the personal library moves or releases.
+# AI_SKILLS_REF="latest" follows the newest release tag (see RELEASES.md); set an exact tag such
+# as "v0.6.1" only to hold a machine back.
 AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
-AI_SKILLS_REF="v0.6.1"
+AI_SKILLS_REF="${AI_SKILLS_REF:-latest}"
 AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
 
 if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
@@ -215,10 +216,12 @@ fi
 # NOTE: `set -e` is IGNORED inside a subshell used as an `if` condition, so each step
 # below carries its own explicit `|| exit 1` rather than relying on it.
 if ! (
-	git -C "$AI_SKILLS_DIR" checkout --detach "$AI_SKILLS_REF" || exit 1
+	ref="$(bash scripts/resolve-release.sh "$AI_SKILLS_DIR" "$AI_SKILLS_REF")" || exit 1
+	echo "AI-Skills: $AI_SKILLS_REF -> $ref"
+	git -C "$AI_SKILLS_DIR" checkout --detach "$ref" || exit 1
 	bash "$AI_SKILLS_DIR/scripts/install-local.sh" || exit 1
 ); then
-	echo "WARNING: AI-Skills bootstrap failed - check your GitHub SSH key and that tag $AI_SKILLS_REF exists, then re-run." >&2
+	echo "WARNING: AI-Skills bootstrap failed - check your GitHub SSH key and that a release ($AI_SKILLS_REF) exists, then re-run." >&2
 fi
 
 # Claude Code reads ~/.claude/skills. Link each AI-Skills skill there (plus m365-tools from the

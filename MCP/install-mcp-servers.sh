@@ -122,6 +122,14 @@ PY
 		}
 	fi
 
+	# --- resolve the release to run: "latest" = highest vX.Y.Z tag; an explicit tag is a hold-back pin
+	if ! RESOLVED_REF="$(bash ../scripts/resolve-release.sh "$SRV_DIR" "$SRV_REF")"; then
+		echo "WARNING: no release to run for $SRV_NAME - skipping build and registration." >&2
+		continue
+	fi
+	[ "$RESOLVED_REF" = "$SRV_REF" ] || echo "  $SRV_NAME: $SRV_REF -> $RESOLVED_REF"
+	SRV_REF="$RESOLVED_REF"
+
 	if ! git -C "$SRV_DIR" checkout --detach "$SRV_REF" >/dev/null 2>&1; then
 		echo "WARNING: could not check out $SRV_REF for $SRV_NAME - skipping build and registration." >&2
 		continue

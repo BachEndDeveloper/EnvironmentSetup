@@ -4,7 +4,7 @@ Declares the [MCP](https://modelcontextprotocol.io/) servers this machine runs, 
 
 - **`servers.json`** — the declarative list. Adding a second or third server is a **data change
   here**, not a code change in the installer.
-- **`install-mcp-servers.sh`** — keeps a deployment copy of each server at its pinned ref, builds
+- **`install-mcp-servers.sh`** — keeps a deployment copy of each server at its resolved release tag, builds
   it, and registers it with the MCP hosts.
 - **`mcp-node`** — the launcher every host is pointed at. Installed to `~/.local/bin/mcp-node`. Called by `01 - Setup Mac Environment.sh`; safe to run on its own.
 
@@ -45,13 +45,14 @@ follows nvm's `default` alias (falling back to the newest installed version, the
 Node no longer requires re-running anything.
 
 **3. Never run a host from a development checkout.** `dir` is a **deployment-only** copy, by default
-under `~/.local/share/mcp/`. The installer moves it between tags and rebuilds it; hosts run its
+under `~/.local/share/mcp/`. The installer moves it between release tags and rebuilds it; hosts run its
 `dist/`. If `dir` were the checkout you develop in, every setup run would detach it from its branch,
 and every `npm run build` you ran mid-change would be live in every host. The installer refuses a
 checkout that is on a branch, for that reason.
 
-Develop in `~/source/<repo>` as usual. To ship: tag a release there, bump `ref` in `servers.json`,
-re-run the installer.
+Develop in `~/source/<repo>` as usual. To ship: cut a release there (see [`../RELEASES.md`](../RELEASES.md)),
+then re-run the installer. `ref` is `"latest"`, so `servers.json` needs no edit; only a new setting a
+release depends on must be added here **before** the tag.
 
 ## Secrets and org-specific values
 
@@ -96,7 +97,7 @@ Append to `servers.json`:
 {
   "name": "my-server",
   "repo": "https://github.com/me/my-mcp.git",
-  "ref": "v1.2.0",
+  "ref": "latest",
   "dir": "$HOME/.local/share/mcp/my-mcp",
   "build": ["npm ci", "npm run build"],
   "entry": "dist/index.js",
@@ -106,8 +107,9 @@ Append to `servers.json`:
 }
 ```
 
-`dir` is expanded with `$HOME`, `ref` is checked out detached (pin a tag, not a branch), and `entry`
-is relative to the checkout. Re-run `bash MCP/install-mcp-servers.sh`.
+`dir` is expanded with `$HOME`, `ref` is `"latest"` (the newest `vX.Y.Z` release tag, resolved by
+`scripts/resolve-release.sh`) or an exact tag to hold the server back, and `entry` is relative to
+the checkout. The checkout is always detached at a tag, never a branch. Re-run `bash MCP/install-mcp-servers.sh`.
 
 Optional fields:
 
@@ -129,8 +131,9 @@ the installer then runs `pi install <dir>` so Pi loads them, exactly as the setu
 AI-Skills. m365-mcp uses this for its `m365-tools` skill. Claude hosts have no package mechanism; the
 `m365-martin` skill in AI-Skills tells them where to read `m365-tools` instead.
 
-**Upgrading a server** is a data change: bump `ref` here and re-run the installer. A machine whose
-checkout already exists fetches tags and moves to the new ref.
+**Upgrading a server** means releasing it and re-running the installer: a machine whose checkout
+already exists fetches tags and moves to the newest release. **Holding one back** is a data change:
+set `ref` to the exact tag. See [`../RELEASES.md`](../RELEASES.md).
 
 ## Behaviour
 

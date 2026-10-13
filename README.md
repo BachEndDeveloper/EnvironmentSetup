@@ -64,7 +64,7 @@ CLI); installs the AI coding-agent CLIs (GitHub Copilot CLI, Claude Code, Pi, an
 hunk diff reviewer; copies the zsh / Oh My Posh / Ghostty / VS Code / Claude Code / Pi configs into
 place (backing up any existing `~/.zshrc`, `~/.claude/settings.json` and `~/.pi/agent/*.json`
 first); restores my full LazyVim config into `~/.config/nvim` (plugins, extras and Mason LSPs); and
-clones the pinned private AI-Skills repository as Pi's source of repository-managed skills. The
+clones the private AI-Skills repository at its newest release as Pi's source of repository-managed skills. The
 .NET SDK is a manual step (see **.NET / C#** below). Finish by setting the Rider fonts manually
 (see [Rider](#rider-manual)).
 
@@ -175,7 +175,7 @@ the Windows installer — install it manually from the Monaspace releases or via
   removed. Claude Code fetches the marketplace and installs the plugins itself on next launch.
 - **Pi:** non-secret Pi settings, custom provider/model catalog, and local extensions are captured
   in `Pi/` and restored by the setup script. Repository-managed skills are instead cloned from the
-  private AI-Skills repository at its pinned release; the upstream dotnet and Aspire skills are
+  private AI-Skills repository at its newest release; the upstream dotnet and Aspire skills are
   cloned into `~/pi-skills/`. Declared packages install on first `pi` launch; no secrets are
   vendored (`/login` per provider afterwards). See `Pi/README.md`.
 - **AI coding agents:** the script installs three terminal CLIs — **GitHub Copilot CLI**
@@ -199,7 +199,7 @@ Three sources feed the agents, and one of them feeds two agents through differen
 | --- | --- | --- |
 | [`dotnet/skills`](https://github.com/dotnet/skills) | cloned by the setup script to `~/pi-skills/dotnet-skills` | the `dotnet-agent-skills` plugin marketplace declared in `ClaudeCode/settings.json`; Claude Code clones it into `~/.claude/plugins/` |
 | [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) | cloned to `~/pi-skills/aspire-skills` | — |
-| [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills) (private) | registered as a local Pi package at a pinned tag | — |
+| [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills) (private) | registered as a local Pi package at its newest release tag | — |
 | Supacode | — | Supacode installs its own skills **and** its surface-tracking hooks when it is installed via the [`Brewfile`](Brewfile) |
 
 So `dotnet/skills` ends up cloned **twice** on a machine — once for Pi by the setup script, once for
@@ -211,9 +211,11 @@ out of `ClaudeCode/settings.json`, since vendoring them would fight with Supacod
 
 The [MCP](https://modelcontextprotocol.io/) servers this machine runs are declared in
 [`MCP/servers.json`](MCP/servers.json) and installed by `MCP/install-mcp-servers.sh`, which the
-setup script calls. Each is kept as a deployment copy at a pinned tag (under `~/.local/share/mcp/`,
-never a working checkout), built, and registered with all three MCP hosts.
-Adding another server is a data change in `servers.json`, not a code change.
+setup script calls. Each is kept as a deployment copy at its newest release tag (under
+`~/.local/share/mcp/`, never a working checkout), built, and registered with its MCP hosts.
+Adding another server is a data change in `servers.json`, not a code change. **Releases are the
+unit we run**: see [`RELEASES.md`](RELEASES.md) for what a release is, how "latest" is resolved and
+how each repository ships one.
 
 Each host is registered through the mechanism it owns:
 
@@ -245,13 +247,14 @@ from that file and drops anything added by hand. See
 
 Personal skills live in the private [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills)
 repository rather than in this machine-setup repository. The macOS setup script always clones it to
-`~/source/AI-Skills` (or `AI_SKILLS_DIR`), checks out a pinned release, and registers it as a local
-Pi package.
+`~/source/AI-Skills` (or `AI_SKILLS_DIR`), checks out its newest release (`AI_SKILLS_REF="latest"`), and registers it as a
+local Pi package.
 
-The repository URL and the pinned release are deliberately hardcoded near the Pi installation block
-in `01 - Setup Mac Environment.sh` — see `AI_SKILLS_REPO` and `AI_SKILLS_REF` there for the current
-values (the tag is deliberately not repeated here, so there is one source of truth). Update those
-two values when the repository moves or you want a newer reviewed skill release. Because the
+The repository URL and the release rule are deliberately hardcoded near the Pi installation block
+in `01 - Setup Mac Environment.sh` — see `AI_SKILLS_REPO` and `AI_SKILLS_REF` there. `latest` follows
+the newest release tag, so shipping a skill change means releasing AI-Skills, not editing this
+repository; set `AI_SKILLS_REF` to an exact tag only to hold a machine back (see
+[`RELEASES.md`](RELEASES.md)). Update `AI_SKILLS_REPO` only when the repository moves. Because the
 repository is private, a new machine must have GitHub SSH access configured before this step runs;
 if it doesn't, the clone (or, on a re-run, the fetch) prints a `WARNING`, a second one covers the
 checkout and local install, the skills bootstrap is skipped, and the rest of the setup continues to

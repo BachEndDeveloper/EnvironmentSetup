@@ -64,7 +64,8 @@ CLI); installs the AI coding-agent CLIs (GitHub Copilot CLI, Claude Code, Pi, an
 hunk diff reviewer; copies the zsh / Oh My Posh / Ghostty / VS Code / Claude Code / Pi configs into
 place (backing up any existing `~/.zshrc`, `~/.claude/settings.json` and `~/.pi/agent/*.json`
 first); restores my full LazyVim config into `~/.config/nvim` (plugins, extras and Mason LSPs); and
-clones the private AI-Skills repository at its newest release as Pi's source of repository-managed skills. The
+deploys the private AI-Skills repository at its newest release to `~/.local/share/ai-skills`,
+registers that copy with Pi, and links Claude Code to it (never the development checkout). The
 .NET SDK is a manual step (see **.NET / C#** below). Finish by setting the Rider fonts manually
 (see [Rider](#rider-manual)).
 
@@ -175,7 +176,7 @@ the Windows installer — install it manually from the Monaspace releases or via
   removed. Claude Code fetches the marketplace and installs the plugins itself on next launch.
 - **Pi:** non-secret Pi settings, custom provider/model catalog, and local extensions are captured
   in `Pi/` and restored by the setup script. Repository-managed skills are instead cloned from the
-  private AI-Skills repository at its newest release; the upstream dotnet and Aspire skills are
+  private AI-Skills repository into a deployment-only copy at its newest release; the upstream dotnet and Aspire skills are
   cloned into `~/pi-skills/`. Declared packages install on first `pi` launch; no secrets are
   vendored (`/login` per provider afterwards). See `Pi/README.md`.
 - **AI coding agents:** the script installs three terminal CLIs — **GitHub Copilot CLI**
@@ -199,7 +200,7 @@ Three sources feed the agents, and one of them feeds two agents through differen
 | --- | --- | --- |
 | [`dotnet/skills`](https://github.com/dotnet/skills) | cloned by the setup script to `~/pi-skills/dotnet-skills` | the `dotnet-agent-skills` plugin marketplace declared in `ClaudeCode/settings.json`; Claude Code clones it into `~/.claude/plugins/` |
 | [`microsoft/aspire-skills`](https://github.com/microsoft/aspire-skills) | cloned to `~/pi-skills/aspire-skills` | — |
-| [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills) (private) | registered as a local Pi package at its newest release tag | — |
+| [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills) (private) | deployed to `~/.local/share/ai-skills` and registered as a local Pi package at its newest release tag | symlinks to that same released deployment |
 | Supacode | — | Supacode installs its own skills **and** its surface-tracking hooks when it is installed via the [`Brewfile`](Brewfile) |
 
 So `dotnet/skills` ends up cloned **twice** on a machine — once for Pi by the setup script, once for
@@ -211,23 +212,19 @@ out of `ClaudeCode/settings.json`, since vendoring them would fight with Supacod
 
 The [MCP](https://modelcontextprotocol.io/) servers this machine runs are declared in
 [`MCP/servers.json`](MCP/servers.json) and installed by `MCP/install-mcp-servers.sh`, which the
-setup script calls. Each is kept as a deployment copy at its newest release tag (under
-`~/.local/share/mcp/`, never a working checkout), built, and registered with its MCP hosts.
-Adding another server is a data change in `servers.json`, not a code change. **Releases are the
-unit we run**: see [`RELEASES.md`](RELEASES.md) for what a release is, how "latest" is resolved and
-how each repository ships one.
+setup script calls. The two managed Git servers are deployed at their newest release tags under
+`~/.local/share/mcp/`, never from working checkouts. Four additional Pi servers are declared as
+machine-local references, with a read-only missing-entry check and documented manual auth/config
+steps. Adding a server is a data change in the manifest. **Our repositories run releases**: see
+[`RELEASES.md`](RELEASES.md) for the release/deployment contract and external-server exceptions.
 
-Each host is registered through the mechanism it owns:
+- **Claude Desktop:** local MCP config is merged with a backup; remote connectors remain manual.
+- **Claude Code:** `claude mcp add-json --scope user`, never hand-editing `~/.claude.json`.
+- **Pi:** keeps **pi-mcp-adapter**, with built-in MCP disabled. The installer uses `pi mcp add` to
+  write `~/.pi/agent/mcp.json`, which the adapter reads alongside `~/.config/mcp/mcp.json`.
 
-- **Claude Desktop** — its config is merged directly (small, configuration-only), touching only the
-  `mcpServers` key and writing a `.backup` first.
-- **Claude Code** — registered through its own `claude mcp add-json --scope user` CLI.
-  `~/.claude.json` is **never** hand-edited: it holds ~73 KB of live project and session state, and
-  a whole-file write would destroy it.
-- **Pi** — registered through its own `pi mcp add`, using Pi's built-in MCP support.
-
-Every host launches servers through `~/.local/bin/mcp-node`, which follows nvm's `default` alias, so
-upgrading or removing a Node version does not break a host. See [`MCP/README.md`](MCP/README.md).
+Local Node servers launch through `~/.local/bin/mcp-node`, following nvm's `default` alias.
+See [`MCP/README.md`](MCP/README.md) for the six-server inventory, machine-local checks and auth.
 
 No secrets or tenant ids live here. To override the M365 tenant on a machine:
 

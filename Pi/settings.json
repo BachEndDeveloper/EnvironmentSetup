@@ -11,10 +11,14 @@
     "npm:pi-lens",
     "npm:@hypabolic/pi-hypa",
     "npm:pi-powerline-footer",
-    "npm:hunkdiff"
+    "npm:hunkdiff",
+    "npm:pi-mcp-adapter"
   ],
   "skills": [
     "~/pi-skills/dotnet-skills/plugins",
     "~/pi-skills/aspire-skills/skills"
+  ],
+  "extensions": [
+    "-builtin:mcp"
   ]
 }

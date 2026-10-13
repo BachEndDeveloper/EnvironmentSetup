@@ -9,7 +9,8 @@
 # Rules this script exists to enforce:
 #   1. NEVER hand-edit ~/.claude.json. It holds ~73 KB of live project and
 #      session state; a stray write would destroy it. Claude Code is mutated
-#      only through its own `claude mcp` CLI, and Pi only through `pi mcp`.
+#      only through its own `claude mcp` CLI. Pi registrations use `pi mcp`
+#      in ~/.pi/agent/mcp.json, which pi-mcp-adapter also discovers.
 #   2. NEVER write a versioned node path into a host config. GUI hosts launch
 #      with a minimal PATH, so they need an absolute command - but an nvm path
 #      such as ~/.nvm/versions/node/v24.16.0/bin/node breaks the moment that
@@ -33,6 +34,11 @@ DESKTOP_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.j
 PI_SETTINGS="$HOME/.pi/agent/settings.json"
 LAUNCHER="$HOME/.local/bin/mcp-node"
 
+if [[ "${1:-}" == "--check-machine-local" ]]; then
+	python3 check-machine-local.py
+	exit $?
+fi
+
 # node is still required: servers are built with npm, and mcp-node needs a node to find.
 if ! command -v node >/dev/null 2>&1; then
 	echo "WARNING: 'node' is not on PATH - skipping MCP provisioning entirely." >&2
@@ -48,14 +54,13 @@ if ! cmp -s mcp-node "$LAUNCHER" 2>/dev/null; then
 fi
 echo "Hosts will launch servers via: $LAUNCHER"
 
-# pi-mcp-adapter replaces Pi's built-in MCP support, which is what this script
-# registers with. Warn rather than edit settings: removing a package is the
-# user's call.
+# Pi keeps the adapter, which discovers Pi's global mcp.json on Pi 0.99+.
+# The shared registry's machine-local entries are checked, never rewritten.
+
 if [ -f "$PI_SETTINGS" ] && grep -q '"npm:pi-mcp-adapter"' "$PI_SETTINGS"; then
-	echo "NOTE: pi-mcp-adapter is installed and replaces Pi's built-in MCP support. On Pi 0.99+ it" >&2
-	echo "      still reads the registrations below (~/.pi/agent/mcp.json), but it ALSO reads" >&2
-	echo "      ~/.config/mcp/mcp.json - keep server names unique across both, or a stale entry there" >&2
-	echo "      can shadow the deployed copy. Older adapters ignore ~/.pi/agent/mcp.json entirely." >&2
+	echo "Pi: pi-mcp-adapter reads ~/.pi/agent/mcp.json and ~/.config/mcp/mcp.json (built-in MCP must be disabled)."
+else
+	echo "WARNING: pi-mcp-adapter not declared in Pi settings; restore Pi/settings.json with setup before using adapter-only entries." >&2
 fi
 
 server_count="$(python3 -c 'import json,sys; print(len(json.load(open("servers.json"))["servers"]))')"
@@ -66,16 +71,27 @@ server_count="$(python3 -c 'import json,sys; print(len(json.load(open("servers.j
 
 for i in $(seq 0 $((server_count - 1))); do
 	# Read one server's fields as shell-safe assignments.
-	eval "$(
+	if ! assignments="$(
 		python3 - "$i" <<'PY'
-import json, shlex, sys, os
+import json, shlex, sys, os, re
 s = json.load(open("servers.json"))["servers"][int(sys.argv[1])]
-d = os.path.expandvars(s["dir"])
+kind = s.get("type", "git")
+if kind not in ("git", "remote", "machine-local"):
+    raise SystemExit(f"unknown server type for {s['name']}")
+if kind == "git" and any(not s.get(key) for key in ("dir", "repo", "ref", "entry")):
+    raise SystemExit(f"missing Git deployment fields for {s['name']}")
+if kind == "remote":
+    if not re.fullmatch(r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})", s.get("url", "")):
+        raise SystemExit(f"remote url must be an environment-variable reference for {s['name']}")
+    if s.get("env") or s.get("piPackage"):
+        raise SystemExit(f"remote entries do not support env/piPackage; use machine-local config for {s['name']}")
+d = os.path.expandvars(s.get("dir", ""))
+print(f'SRV_TYPE={shlex.quote(kind)}')
 print(f'SRV_NAME={shlex.quote(s["name"])}')
-print(f'SRV_REPO={shlex.quote(s["repo"])}')
-print(f'SRV_REF={shlex.quote(s["ref"])}')
+print(f'SRV_REPO={shlex.quote(s.get("repo", ""))}')
+print(f'SRV_REF={shlex.quote(s.get("ref", ""))}')
 print(f'SRV_DIR={shlex.quote(d)}')
-print(f'SRV_ENTRY={shlex.quote(s["entry"])}')
+print(f'SRV_ENTRY={shlex.quote(s.get("entry", ""))}')
 print(f'SRV_POST={shlex.quote(s.get("postInstall", ""))}')
 print(f'SRV_BUILD={shlex.quote(" && ".join(s.get("build", [])))}')
 print(f'SRV_DESC={shlex.quote(s.get("description", ""))}')
@@ -87,12 +103,21 @@ bad = [h for h in hosts if h not in ("claude-desktop", "claude-code", "pi")]
 if bad:
     raise SystemExit(f"unknown host(s) {bad} for {s['name']} in servers.json")
 print(f'SRV_HOSTS={shlex.quote(" ".join(hosts))}')
+print(f'SRV_URL={shlex.quote(os.path.expandvars(s.get("url", "")))}')
 print(f'SRV_REQUIRES={shlex.quote(chr(10).join(os.path.expandvars(r) for r in s.get("requires", [])))}')
 PY
-	)"
+	)"; then
+		echo "WARNING: invalid server declaration at index $i - skipping." >&2
+		continue
+	fi
+	eval "$assignments"
 
 	echo
-	echo "=== MCP server: $SRV_NAME ($SRV_REF) ==="
+	echo "=== MCP server: $SRV_NAME ($SRV_TYPE) ==="
+	if [[ "$SRV_TYPE" == "machine-local" ]]; then
+		python3 check-machine-local.py "$SRV_NAME" || true
+		continue
+	fi
 
 	# --- paths the server needs but this installer never provisions (e.g. a private data repo).
 	# Warn, but still install: the server itself refuses to start without them.
@@ -100,56 +125,68 @@ PY
 		[ -n "$required" ] || continue
 		[ -e "$required" ] || echo "WARNING: $SRV_NAME needs $required, which does not exist yet - restore or clone it, then restart the hosts." >&2
 	done <<<"$SRV_REQUIRES"
+	# Assigned by the shell-safe manifest projection above.
+	# shellcheck disable=SC2153
 	wants_host() { [[ " $SRV_HOSTS " == *" $1 "* ]]; }
 
-	# --- deployment checkout at the pinned ref (mirrors the AI-Skills block in the setup script)
-	if [ -d "$SRV_DIR/.git" ]; then
-		if branch="$(git -C "$SRV_DIR" symbolic-ref -q --short HEAD)"; then
-			echo "WARNING: $SRV_DIR is on branch '$branch', so it looks like a development checkout." >&2
-			echo "         This installer only manages deployment copies - skipping $SRV_NAME." >&2
-			echo "         Point \"dir\" in servers.json somewhere else (see MCP/README.md)." >&2
+	if [[ "$SRV_TYPE" == "remote" ]]; then
+		if [[ -z "$SRV_URL" || "$SRV_URL" == *'$'* || ! "$SRV_URL" =~ ^https?:// ]]; then
+			echo "WARNING: $SRV_NAME url reference is unset - configure it locally and re-run." >&2
 			continue
 		fi
-		git -C "$SRV_DIR" fetch --tags --prune origin || echo "WARNING: could not fetch $SRV_NAME updates." >&2
-	elif [ -e "$SRV_DIR" ]; then
-		echo "ERROR: $SRV_DIR exists but is not a Git checkout - skipping $SRV_NAME." >&2
-		continue
 	else
-		mkdir -p "$(dirname "$SRV_DIR")"
-		git clone "$SRV_REPO" "$SRV_DIR" || {
-			echo "WARNING: could not clone $SRV_NAME (check your GitHub SSH key) - skipping." >&2
+		# --- deployment checkout at the pinned ref (mirrors the AI-Skills block in the setup script)
+		if [ -d "$SRV_DIR/.git" ]; then
+			if branch="$(git -C "$SRV_DIR" symbolic-ref -q --short HEAD)"; then
+				echo "WARNING: $SRV_DIR is on branch '$branch', so it looks like a development checkout." >&2
+				echo "         This installer only manages deployment copies - skipping $SRV_NAME." >&2
+				echo "         Point \"dir\" in servers.json somewhere else (see MCP/README.md)." >&2
+				continue
+			fi
+			git -C "$SRV_DIR" fetch --tags --prune origin || echo "WARNING: could not fetch $SRV_NAME updates." >&2
+		elif [ -e "$SRV_DIR" ]; then
+			echo "ERROR: $SRV_DIR exists but is not a Git checkout - skipping $SRV_NAME." >&2
 			continue
-		}
-	fi
+		else
+			mkdir -p "$(dirname "$SRV_DIR")"
+			git clone "$SRV_REPO" "$SRV_DIR" || {
+				echo "WARNING: could not clone $SRV_NAME (check your GitHub SSH key) - skipping." >&2
+				continue
+			}
+			# Keep a clone retryable even if no release/build is available yet.
+			git -C "$SRV_DIR" checkout --detach HEAD >/dev/null 2>&1 || { echo "WARNING: could not detach new $SRV_NAME deployment." >&2; continue; }
+		fi
 
-	# --- resolve the release to run: "latest" = highest vX.Y.Z tag; an explicit tag is a hold-back pin
-	if ! RESOLVED_REF="$(bash ../scripts/resolve-release.sh "$SRV_DIR" "$SRV_REF")"; then
-		echo "WARNING: no release to run for $SRV_NAME - skipping build and registration." >&2
-		continue
-	fi
-	[ "$RESOLVED_REF" = "$SRV_REF" ] || echo "  $SRV_NAME: $SRV_REF -> $RESOLVED_REF"
-	SRV_REF="$RESOLVED_REF"
+		# --- resolve the release to run: "latest" = highest vX.Y.Z tag; an explicit tag is a hold-back pin
+		if ! RESOLVED_REF="$(bash ../scripts/resolve-release.sh "$SRV_DIR" "$SRV_REF")"; then
+			echo "WARNING: no release to run for $SRV_NAME - skipping build and registration." >&2
+			continue
+		fi
+		[ "$RESOLVED_REF" = "$SRV_REF" ] || echo "  $SRV_NAME: $SRV_REF -> $RESOLVED_REF"
+		SRV_REF="$RESOLVED_REF"
 
-	if ! git -C "$SRV_DIR" checkout --detach "$SRV_REF" >/dev/null 2>&1; then
-		echo "WARNING: could not check out $SRV_REF for $SRV_NAME - skipping build and registration." >&2
-		continue
-	fi
+		if ! git -C "$SRV_DIR" checkout --detach "$SRV_REF" >/dev/null 2>&1; then
+			echo "WARNING: could not check out $SRV_REF for $SRV_NAME - skipping build and registration." >&2
+			continue
+		fi
 
-	# --- build
-	if ! (cd "$SRV_DIR" && eval "$SRV_BUILD"); then
-		echo "WARNING: build failed for $SRV_NAME - leaving it unregistered." >&2
-		continue
-	fi
+		# --- build
+		if ! (cd "$SRV_DIR" && eval "$SRV_BUILD"); then
+			echo "WARNING: build failed for $SRV_NAME - leaving it unregistered." >&2
+			continue
+		fi
 
-	ENTRY_PATH="$SRV_DIR/$SRV_ENTRY"
-	if [ ! -f "$ENTRY_PATH" ]; then
-		echo "WARNING: $SRV_NAME built but $ENTRY_PATH is missing - leaving it unregistered." >&2
-		continue
+		ENTRY_PATH="$SRV_DIR/$SRV_ENTRY"
+		if [ ! -f "$ENTRY_PATH" ]; then
+			echo "WARNING: $SRV_NAME built but $ENTRY_PATH is missing - leaving it unregistered." >&2
+			continue
+		fi
+
 	fi
 
 	# --- the host entry, built once and reused by every registration
 	SERVER_JSON="$(
-		python3 - "$i" "$LAUNCHER" "$ENTRY_PATH" <<'PY'
+		python3 - "$i" "$LAUNCHER" "${ENTRY_PATH:-}" <<'PY'
 import json, os, sys
 s = json.load(open("servers.json"))["servers"][int(sys.argv[1])]
 # Expand $HOME and similar here: GUI hosts pass env values through literally.
@@ -158,7 +195,7 @@ env = {k: os.path.expandvars(str(v)) for k, v in (s.get("env") or {}).items()}
 # committed to this public repository.
 if os.environ.get("M365_TENANT_ID") and s["name"].startswith("m365"):
     env["TENANT_ID"] = os.environ["M365_TENANT_ID"]
-entry = {"command": sys.argv[2], "args": [sys.argv[3]]}
+entry = {"url": os.path.expandvars(s["url"])} if s.get("type") == "remote" else {"command": sys.argv[2], "args": [sys.argv[3]]}
 if env:
     entry["env"] = env
 print(json.dumps(entry))
@@ -166,7 +203,9 @@ PY
 	)"
 
 	# --- Claude Desktop: small file, surgical merge, backup first
-	if ! wants_host claude-desktop; then
+	if [[ "$SRV_TYPE" == "remote" ]]; then
+		echo "  Claude Desktop: remote connector setup is manual (not written to local MCP config)"
+	elif ! wants_host claude-desktop; then
 		echo "  Claude Desktop: skipped (not in this server's hosts)"
 	else
 	python3 - "$SRV_NAME" "$SERVER_JSON" "$DESKTOP_CONFIG" "$SRV_SUPERSEDES" <<'PY'
@@ -203,26 +242,26 @@ PY
 		echo "  Claude Code: skipped (not in this server's hosts)"
 	elif command -v claude >/dev/null 2>&1; then
 		for old in $SRV_SUPERSEDES; do
-			claude mcp remove "$old" --scope user >/dev/null 2>&1 && echo "  Claude Code: removed superseded $old"
+			claude mcp remove "$old" --scope user >/dev/null 2>&1 && echo "  Claude Code: removed superseded $old" || true
 		done
 		claude mcp remove "$SRV_NAME" --scope user >/dev/null 2>&1 || true
 		if claude mcp add-json "$SRV_NAME" "$SERVER_JSON" --scope user >/dev/null 2>&1; then
 			echo "  Claude Code: $SRV_NAME registered via 'claude mcp add-json --scope user'"
 		else
 			echo "WARNING: 'claude mcp add-json' failed for $SRV_NAME - add it manually:" >&2
-			echo "         claude mcp add-json $SRV_NAME '$SERVER_JSON' --scope user" >&2
+			echo "         Check the machine-local config and use claude mcp add-json for $SRV_NAME (values withheld)." >&2
 		fi
 	else
 		echo "WARNING: 'claude' CLI not found - $SRV_NAME not registered with Claude Code." >&2
 	fi
 
-	# --- Pi: built-in MCP support, through its own CLI. `pi mcp add` replaces an
+	# --- Pi: register in mcp.json through its CLI; the adapter reads this registry. `pi mcp add` replaces an
 	# existing entry of the same name, so this is idempotent.
 	if ! wants_host pi; then
 		echo "  Pi: skipped (not in this server's hosts)"
 	elif command -v pi >/dev/null 2>&1; then
 		for old in $SRV_SUPERSEDES; do
-			pi mcp remove "$old" >/dev/null 2>&1 && echo "  Pi: removed superseded $old"
+			pi mcp remove "$old" >/dev/null 2>&1 && echo "  Pi: removed superseded $old" || true
 		done
 		eval "$(
 			python3 - "$SERVER_JSON" <<'PY'
@@ -234,11 +273,16 @@ PY
 		)"
 		pi_args=(mcp add "$SRV_NAME")
 		[ -n "$SRV_DESC" ] && pi_args+=(--description "$SRV_DESC")
-		if pi "${pi_args[@]}" "${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"}" -- "$LAUNCHER" "$ENTRY_PATH" >/dev/null 2>&1; then
+		if [[ "$SRV_TYPE" == "remote" ]]; then
+			pi_args+=(--url "$SRV_URL")
+		else
+			pi_args+=("${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"}" -- "$LAUNCHER" "$ENTRY_PATH")
+		fi
+		if pi "${pi_args[@]}" >/dev/null 2>&1; then
 			echo "  Pi: $SRV_NAME registered via 'pi mcp add'"
 		else
 			echo "WARNING: 'pi mcp add' failed for $SRV_NAME - add it manually:" >&2
-			echo "         pi mcp add $SRV_NAME -- $LAUNCHER $ENTRY_PATH" >&2
+			echo "         Check the machine-local config and use pi mcp add for $SRV_NAME (values withheld)." >&2
 		fi
 
 		# Skills the server ships (e.g. m365-tools): register the checkout as a Pi

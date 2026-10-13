@@ -189,47 +189,14 @@ if command -v pi >/dev/null 2>&1 || [ -d "$PI_DIR" ]; then
 	echo "         Remember: 'pi' + /login per provider, and set your Foundry resource in ~/.pi/agent/models.json."
 fi
 
-# Personal AI skills — private source of truth for Pi and Claude Code skills.
-# This runs after Pi settings are restored so `pi install` records the package persistently.
-# AI_SKILLS_REF="latest" follows the newest release tag (see RELEASES.md); set an exact tag such
-# as "v0.6.1" only to hold a machine back.
-AI_SKILLS_REPO="git@github.com:BachEndDeveloper/AI-Skills.git"
-AI_SKILLS_REF="${AI_SKILLS_REF:-latest}"
-AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/source/AI-Skills}"
-
-if [[ -d "$AI_SKILLS_DIR/.git" ]]; then
-	git -C "$AI_SKILLS_DIR" fetch --tags --prune origin || echo "WARNING: could not fetch AI-Skills updates." >&2
-elif [[ -e "$AI_SKILLS_DIR" ]]; then
-	echo "ERROR: $AI_SKILLS_DIR exists but is not a Git checkout." >&2
-	exit 1
+# Personal skills run from a deployment-only release copy, never ~/source/AI-Skills.
+# Runs after Pi settings restoration so package registration persists. Migration and
+# Claude Code relinking also work when adopting a release with older install scripts.
+AI_SKILLS_READY=false
+if bash scripts/install-ai-skills.sh; then
+	AI_SKILLS_READY=true
 else
-	mkdir -p "$(dirname "$AI_SKILLS_DIR")"
-	# A fresh machine without a GitHub SSH key is the documented normal case: this clone
-	# fails with `Permission denied (publickey)` (exit 128) and must not take the upstream
-	# skills clones and the final reminders down with it.
-	git clone "$AI_SKILLS_REPO" "$AI_SKILLS_DIR" || echo "WARNING: could not clone AI-Skills (check your GitHub SSH key) - skipping the skills bootstrap." >&2
-fi
-
-# The checkout and the local install are guarded for the same reason as the clone above:
-# a missing tag or a half-set-up machine must not skip the upstream skills clones and the
-# final reminders below, which are themselves deliberately tolerant.
-# NOTE: `set -e` is IGNORED inside a subshell used as an `if` condition, so each step
-# below carries its own explicit `|| exit 1` rather than relying on it.
-if ! (
-	ref="$(bash scripts/resolve-release.sh "$AI_SKILLS_DIR" "$AI_SKILLS_REF")" || exit 1
-	echo "AI-Skills: $AI_SKILLS_REF -> $ref"
-	git -C "$AI_SKILLS_DIR" checkout --detach "$ref" || exit 1
-	bash "$AI_SKILLS_DIR/scripts/install-local.sh" || exit 1
-); then
-	echo "WARNING: AI-Skills bootstrap failed - check your GitHub SSH key and that a release ($AI_SKILLS_REF) exists, then re-run." >&2
-fi
-
-# Claude Code reads ~/.claude/skills. Link each AI-Skills skill there (plus m365-tools from the
-# deployed m365-mcp copy) instead of copying, so Claude Code follows the pinned checkout. The
-# script backs up anything it replaces and never touches skills it does not own. m365-tools is
-# linked on a later run if the MCP servers below are not installed yet.
-if [[ -f "$AI_SKILLS_DIR/scripts/link-claude-code.sh" ]]; then
-	bash "$AI_SKILLS_DIR/scripts/link-claude-code.sh" --apply || echo "WARNING: linking AI-Skills into Claude Code failed." >&2
+	echo "WARNING: AI-Skills bootstrap failed - check your GitHub SSH key/release and re-run (see RELEASES.md)." >&2
 fi
 
 # External skills referenced by Pi settings.json. Keep upstream-managed skills out of the
@@ -268,8 +235,12 @@ fi
 
 # MCP servers declared in MCP/servers.json. The installer keeps a deployment copy of each at
 # its pinned ref (never a working checkout), builds it, and registers it with Claude Desktop,
-# Claude Code and Pi's built-in MCP support. Failures warn rather than abort: a missing MCP
+# Claude Code and Pi's pi-mcp-adapter (built-in MCP disabled). Failures warn rather than abort: a missing MCP
 # server should not cost you the rest of the setup.
 bash MCP/install-mcp-servers.sh || echo "WARNING: MCP provisioning failed - see MCP/README.md." >&2
+AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/.local/share/ai-skills}"
+if $AI_SKILLS_READY && [[ -f "$AI_SKILLS_DIR/scripts/link-claude-code.sh" ]]; then
+	env AI_SKILLS_DIR="$AI_SKILLS_DIR" bash "$AI_SKILLS_DIR/scripts/link-claude-code.sh" --apply || echo "WARNING: Claude Code skills relinking failed." >&2
+fi
 
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

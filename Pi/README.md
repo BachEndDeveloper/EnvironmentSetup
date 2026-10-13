@@ -12,9 +12,9 @@ Backup of the non-secret [Pi](https://pi.dev) configuration restored on a new ma
 
 1. It backs up existing `~/.pi/agent/settings.json` and `models.json`.
 2. It copies this directory's `settings.json`, `models.json`, and local extensions into `~/.pi/agent/`.
-3. Earlier in the script, it clones the private AI-Skills repository at its pinned tag and registers it as a Pi package. That package is the sole source for repository-managed skills.
+3. After restoring settings, it deploys AI-Skills to `~/.local/share/ai-skills` at its newest stable release tag, registers that copy as a Pi package and removes the old `../../source/AI-Skills` entry via Pi's CLI. That deployment is the sole source for repository-managed skills; the development checkout stays untouched.
 4. It clones the upstream dotnet and Aspire skills repositories into `~/pi-skills/`, because this configuration references both paths.
-5. It provisions the MCP servers declared in [`../MCP/servers.json`](../MCP/servers.json) and registers each with Pi's **built-in** MCP support through `pi mcp add`, alongside Claude Desktop and Claude Code. `pi-mcp-adapter` is deliberately not in `settings.json`: it replaces the built-in support while installed.
+5. It provisions the managed MCP deployments in [`../MCP/servers.json`](../MCP/servers.json), registers them through `pi mcp add` in `~/.pi/agent/mcp.json`, and checks four additional machine-local registrations. Pi uses **pi-mcp-adapter**, declared in `settings.json`, with `-builtin:mcp` disabling the built-in runtime. The adapter reads that registry and `~/.config/mcp/mcp.json`; Code/Desktop registration follows each server's host list. No machine-local OAuth/restriction values are rewritten.
 
 No skill directory is copied from this repository into `~/.agents/skills` or `~/.pi/agent/skills`.
 
@@ -32,9 +32,11 @@ No skill directory is copied from this repository into `~/.agents/skills` or `~/
 
    `npm run auth` performs the normal sign-in and then **asks whether to submit an admin-consent request** for scopes the tenant has not granted, which opens a second browser window. That second window will not return a token — that is the expected outcome, since the point is Entra's approval screen. Use `npm run auth -- --skip-pending` to never be asked, which is what an unattended run wants.
 
-   That directory is the deployment copy the hosts run, not a development checkout; the token it creates is stored per user, so it also covers any working copy you develop in. Check `pi mcp list` to confirm Pi connected. See [../MCP/README.md](../MCP/README.md).
+   That directory is the deployment copy the hosts run, not a development checkout; the token it creates is stored per user, so it also covers any working copy you develop in. Use `/mcp` inside Pi to confirm the adapter connected; `pi mcp list` is the native CLI's view. See [../MCP/README.md](../MCP/README.md).
 4. Pi installs declared packages automatically on first launch; use `pi update --extensions` to force reconciliation.
-5. Update personal or shared skills only in the AI-Skills repository. Update the hardcoded tag in `01 - Setup Mac Environment.sh` when adopting a reviewed release.
+5. Develop skills only in the AI-Skills development repository, release, then run EnvironmentSetup's `scripts/install-ai-skills.sh` to advance the deployment and both hosts. `AI_SKILLS_REF=latest` follows stable releases; export an exact tag to hold back. Reload/restart hosts.
+6. Complete the machine-local Confluent/remote setup and interactive OAuth described in [../MCP/README.md](../MCP/README.md); `bash MCP/install-mcp-servers.sh --check-machine-local` reports missing references without printing values.
+7. Scheduling is not configured by this setup. The old Cowork tasks remain paused; any replacement needs separate owner approval, released skills, memory/m365, bounded writes and failure visibility.
 
 ## Security
 

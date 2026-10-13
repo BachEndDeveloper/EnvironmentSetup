@@ -1,5 +1,5 @@
 {
-  "_comment": "Declarative list of MCP servers this machine provisions. Adding a second or third server should be a data change here, not a code change in the installer. Each server is registered with Claude Desktop, Claude Code and Pi (built-in MCP), all launching through ~/.local/bin/mcp-node.",
+  "_comment": "Declarative MCP inventory: released Git deployments, remote URL references, and machine-local registrations. Pi uses pi-mcp-adapter with built-in MCP disabled; it reads ~/.pi/agent/mcp.json and ~/.config/mcp/mcp.json. No secrets or org-specific values belong here.",
   "servers": [
     {
       "name": "m365-personal-productivity",
@@ -23,8 +23,8 @@
       "env": {
         "ALLOW_DELETE": "false"
       },
-      "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs without a tenant override. Set TENANT_ID here only if you need to override it - and never commit a real tenant id to this public repository; export M365_TENANT_ID before running setup instead. ALLOW_DELETE is stated explicitly even though false is already the server default: the installer writes the host env block from this file alone, so a value set by hand in a host's mcp.json is silently dropped on the next run. Record the intended posture here, not in the host. Set it to 'true' to register delete_category and delete_mail_folder and allow moving mail into Deleted Items - each still requires the server's preview-and-confirm_action approval flow. ALLOW_SEND is deliberately absent: enabling sending is a per-host decision, not a machine-wide one.",
-      "_dirNote": "A deployment-only copy that the installer moves between tags. Never point this at the checkout you develop in: the installer refuses a checkout that is on a branch, and hosts would otherwise run whatever you last built. Develop in ~/source/... as usual; ship by tagging and bumping ref.",
+      "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs without a tenant override. Export M365_TENANT_ID before running setup for a machine-local override; never commit a real tenant id. ALLOW_DELETE is stated explicitly even though false is already the server default: the installer writes the host env block from this file alone, so a value set by hand in a host's mcp.json is silently dropped on the next run. Record the intended posture here, not in the host. Set it to 'true' to register delete_category and delete_mail_folder and allow moving mail into Deleted Items - each still requires the server's preview-and-confirm_action approval flow. ALLOW_SEND is deliberately absent (default-off). The installer applies this env block to every selected host; any change in capabilities needs owner approval.",
+      "_dirNote": "A deployment-only copy that the installer moves between tags. Never point this at the checkout you develop in: the installer refuses a checkout that is on a branch, and hosts would otherwise run whatever you last built. Develop in ~/source/... as usual; ship by releasing and re-running the installer.",
       "_refNote": "\"latest\" = the newest release tag (vX.Y.Z, no pre-release), resolved by scripts/resolve-release.sh after fetching. Put an exact tag here only to hold this server back. See RELEASES.md."
     },
     {
@@ -52,8 +52,48 @@
         "MEMORY_ALLOW_WRITE": "true",
         "MEMORY_REMOTE_ALLOWED": "private-github"
       },
-      "_envNote": "MEMORY_ALLOW_WRITE=true keeps the posture it had when registered by hand; writes are still staged inside the server and the gate is only read from here, never from the settings file. MEMORY_REMOTE_ALLOWED=private-github acknowledges DailyDriver's private remote; set here first so the planned server-startup remote guard can ship without breaking hosts. env values are expanded with $HOME by the installer because GUI hosts do not expand variables.",
+      "_envNote": "MEMORY_ALLOW_WRITE=true keeps the posture it had when registered by hand; core writes are staged and confirmed; memory_record automatically captures attributed bank claims and authored archive decisions and the gate is only read from here, never from the settings file. MEMORY_REMOTE_ALLOWED=private-github acknowledges DailyDriver's private remote; set here first so the server-startup remote guard can ship without breaking hosts. env values are expanded with $HOME by the installer because GUI hosts do not expand variables.",
       "_refNote": "\"latest\" = the newest release tag (vX.Y.Z, no pre-release), resolved by scripts/resolve-release.sh after fetching. Put an exact tag here only to hold this server back. See RELEASES.md."
+    },
+    {
+      "name": "confluent",
+      "type": "machine-local",
+      "transport": "stdio",
+      "hosts": [
+        "pi"
+      ],
+      "configFile": "$HOME/.pi/agent/mcp.json",
+      "manualSetup": "Install the approved Confluent npm release into $HOME/.local/share/mcp-confluent; create its machine-local config.yaml and register the stdio entry plus --config and reviewed --block-tools restrictions in the referenced registry. See MCP/README.md."
+    },
+    {
+      "name": "atlassian",
+      "type": "machine-local",
+      "transport": "remote",
+      "hosts": [
+        "pi"
+      ],
+      "configFile": "$HOME/.pi/agent/mcp.json",
+      "manualSetup": "Register the remote Atlassian URL locally in the referenced registry and complete interactive OAuth with the adapter. See MCP/README.md."
+    },
+    {
+      "name": "datadog",
+      "type": "machine-local",
+      "transport": "remote",
+      "hosts": [
+        "pi"
+      ],
+      "configFile": "$HOME/.config/mcp/mcp.json",
+      "manualSetup": "Configure the Datadog remote URL and OAuth locally in the referenced adapter registry; sign in interactively. See MCP/README.md."
+    },
+    {
+      "name": "atlassian-rovo",
+      "type": "machine-local",
+      "transport": "remote",
+      "hosts": [
+        "pi"
+      ],
+      "configFile": "$HOME/.config/mcp/mcp.json",
+      "manualSetup": "Configure the Rovo remote URL, OAuth and reviewed excludeTools locally in the referenced adapter registry; sign in interactively. Preserve this distinct name. See MCP/README.md."
     }
   ]
 }

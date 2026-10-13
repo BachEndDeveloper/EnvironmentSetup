@@ -1,97 +1,111 @@
 # MCP server provisioning
 
-Declares the [MCP](https://modelcontextprotocol.io/) servers this machine runs, and installs them.
+`servers.json` is the declarative inventory: **six servers**, with released Git deployments,
+remote URL references, and machine-local registrations. Adding a server is a data change,
+not a new installer branch. `install-mcp-servers.sh` deploys/builds managed servers and registers
+them; `check-machine-local.py` checks the manual prerequisites without probing servers or printing
+configuration values. `mcp-node` is installed to `~/.local/bin/mcp-node` for local Node servers.
 
-- **`servers.json`** — the declarative list. Adding a second or third server is a **data change
-  here**, not a code change in the installer.
-- **`install-mcp-servers.sh`** — keeps a deployment copy of each server at its resolved release tag, builds
-  it, and registers it with the MCP hosts.
-- **`mcp-node`** — the launcher every host is pointed at. Installed to `~/.local/bin/mcp-node`. Called by `01 - Setup Mac Environment.sh`; safe to run on its own.
+## Hosts and Pi's adapter
 
-## How the three hosts are wired
-
-All three hosts are registered, each through the mechanism it owns:
-
-| Host | How it learns about a server |
+| Host | Registration mechanism |
 | --- | --- |
-| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` — merged by this installer |
-| Claude Code | `claude mcp add-json <name> <json> --scope user` — its **own CLI**, never hand-edited |
-| Pi | `pi mcp add <name> -- <command> <args>` — its **own CLI**, writing `~/.pi/agent/mcp.json` |
+| Claude Desktop | Surgical merge of `mcpServers` in `~/Library/Application Support/Claude/claude_desktop_config.json`, backup first; remote connectors are manual |
+| Claude Code | `claude mcp add-json <name> <json> --scope user`; never hand-edit `~/.claude.json` |
+| Pi | `pi mcp add <name> -- <command> <args>` (or `--url`), writing `~/.pi/agent/mcp.json` |
 
-Pi uses its **built-in** MCP support. An earlier version of this setup relied on the
-`pi-mcp-adapter` package, which let Pi import servers from the two Claude hosts. That package
-replaces the built-in support while installed, and the built-in `mcp.json` has no import mechanism,
-so it is no longer used: the installer registers Pi directly and warns if the adapter is still
-installed.
+**Pi uses `npm:pi-mcp-adapter`, with `-builtin:mcp` in `extensions`.** The setup restores both
+settings; it does not remove the adapter. Verified against installed adapter **5.3.0** and Pi
+**1.2.0**: `config.ts` discovers `~/.config/mcp/mcp.json` and, on Pi 0.99+ (MCP API present),
+`~/.pi/agent/mcp.json`. `index.ts` enables that discovery based on Pi's MCP API, independently of
+whether the built-in extension is enabled. The native CLI still writes `mcp.json`; disabling the
+built-in runtime does not disable its registration command. Adapter overrides can also live in
+`~/.pi/agent/mcp-adapter.json`, and project/`.agents` configs may override global entries.
 
-Older host keys for a server can be listed in `supersedes`; the installer removes them from every
-host so a machine never ends up with the same server registered twice.
+The installer keeps **m365 and memory in the proven `~/.pi/agent/mcp.json` path**. It does not
+move them to the adapter override file, migrate the four local references, or rewrite their OAuth
+and restriction fields. Keep each name unique across discovered registries; an override can
+shadow a managed entry. Older adapters/Pi versions with different discovery are not supported by
+this model: update them before using it. Use the adapter's interactive `/mcp` view to verify the
+actual runtime; `pi mcp list` is the native CLI's health view, not proof of adapter health.
 
-## Three rules this installer exists to enforce
+## Inventory and manual prerequisites
 
-**1. Never hand-edit `~/.claude.json`.** That file is ~73 KB and holds Claude Code's live project
-and session state, not just configuration. A whole-file write would destroy it. All Claude Code
-mutation goes through `claude mcp`, and Pi through `pi mcp`. Existing entries are re-registered on
-every run, so a changed path or launcher actually lands — leaving them "as-is" is how a stale entry
-pointing at a removed Node survived before. Claude Desktop's config *is* edited directly — it is small and
-configuration-only — but only the `mcpServers` key is touched and a `.backup` is written first.
+| Name | Model | Hosts | Machine-local registration / prerequisite |
+| --- | --- | --- | --- |
+| `m365-personal-productivity` | Released Git deployment | Desktop, Code, Pi | `~/.local/share/mcp/m365-mcp`; interactive sign-in |
+| `memory` | Released Git deployment | Pi only | `~/.local/share/mcp/memory-mcp`; private data repo and write policy |
+| `confluent` | Machine-local stdio reference | Pi | Entry in `$HOME/.pi/agent/mcp.json`; npm installation and private YAML config |
+| `atlassian` | Machine-local remote reference | Pi | Entry in `$HOME/.pi/agent/mcp.json`; local URL and interactive OAuth |
+| `datadog` | Machine-local adapter remote reference | Pi | Entry in `$HOME/.config/mcp/mcp.json`; local URL and OAuth |
+| `atlassian-rovo` | Machine-local adapter remote reference | Pi | Entry in `$HOME/.config/mcp/mcp.json`; local URL, OAuth and reviewed `excludeTools` |
 
-**2. Never write a versioned Node path into a host config.** GUI hosts such as Claude Desktop
-launch with a minimal `PATH`, so a host config needs an absolute command. But an nvm path such as
-`~/.nvm/versions/node/v24.16.0/bin/node` breaks the moment that version is removed — the host then
-fails with `ENOENT`, which is exactly what happened to the Claude Code entry on the development
-machine. Every host is therefore pointed at **`~/.local/bin/mcp-node`**, a small launcher that
-follows nvm's `default` alias (falling back to the newest installed version, then `PATH`). Upgrading
-Node no longer requires re-running anything.
+These four references deliberately contain **no URL, credential or org configuration values**.
+Their existing registrations are retained byte-for-byte. On a new machine:
 
-**3. Never run a host from a development checkout.** `dir` is a **deployment-only** copy, by default
-under `~/.local/share/mcp/`. The installer moves it between release tags and rebuilds it; hosts run its
-`dist/`. If `dir` were the checkout you develop in, every setup run would detach it from its branch,
-and every `npm run build` you ran mid-change would be live in every host. The installer refuses a
-checkout that is on a branch, for that reason.
-
-Develop in `~/source/<repo>` as usual. To ship: cut a release there (see [`../RELEASES.md`](../RELEASES.md)),
-then re-run the installer. `ref` is `"latest"`, so `servers.json` needs no edit; only a new setting a
-release depends on must be added here **before** the tag.
-
-## Secrets and org-specific values
-
-Nothing secret is stored here. The m365 server ships a `config.defaults.json` with a non-secret
-tenant id, so a fresh clone needs no tenant override in `servers.json`.
-
-### Capability gates
-
-The m365 server has two independent opt-in switches, both default-off:
-
-| Gate | Default | Effect when `true` |
-| --- | --- | --- |
-| `ALLOW_SEND` | `false` | Registers `send_draft`, `send_mail`, `delete_event`, `prepare_meeting_invite`, `send_meeting_invite`, and lets calendar writes attach attendees. |
-| `ALLOW_DELETE` | `false` | Registers `delete_category` and `delete_mail_folder`, and allows `move_emails` into Deleted Items. |
-
-With both off the server exposes 44 of its 51 tools. Enabling `ALLOW_DELETE` does not make deletes
-unattended: each one still stages a preview and a one-time token that only `confirm_action` spends.
-
-**Set these in `servers.json`, not in a host's config.** The installer rebuilds each host's `env`
-block from `servers.json` alone, so a value typed by hand into `~/.pi/agent/mcp.json` or a Claude
-config is silently dropped on the next run. `ALLOW_DELETE` is stated explicitly there even though
-`false` is already the server default, so the intended posture survives a re-install and is visible
-in review.
-
-To override the tenant on a given machine, export it before running setup — it is read from the
-environment and never committed:
+1. Install an approved/pinned `@confluentinc/mcp-confluent` release into
+   `$HOME/.local/share/mcp-confluent` (the surveyed installation was 1.5.0). Create its private
+   `$HOME/.local/share/mcp-confluent/config.yaml` locally using the upstream instructions. Register
+   `confluent` with `mcp-node`, the package's `dist/index.js`, `--config` pointing at that YAML file,
+   and a reviewed `--block-tools` list. Do not drop the existing mutation restrictions.
+2. Register `atlassian` with its local remote URL in Pi's global `mcp.json`, then sign in using the
+   adapter's interactive OAuth flow. Do not put that URL in this repository.
+3. Create/restore the `datadog` and `atlassian-rovo` entries under `mcpServers` in the shared registry
+   `$HOME/.config/mcp/mcp.json`, using the adapter/upstream instructions, then sign in interactively.
+   Retain `auth`, lifecycle/timeouts and Rovo's reviewed `excludeTools`. The two Atlassian names
+   are distinct existing registrations, not aliases to collapse without owner approval.
+4. Run the read-only check below; inspect adapter health interactively afterwards. Config presence
+   is **not** auth validity or proof that every mutation path is denied.
 
 ```sh
-M365_TENANT_ID=<your-tenant-id> bash "01 - Setup Mac Environment.sh"
+bash MCP/install-mcp-servers.sh --check-machine-local
+# Nonzero if any referenced entry is missing/invalid; names and $HOME paths only.
 ```
 
-Auth tokens are never handled here. Each server's own sign-in step is printed as a `NEXT:` line at
-the end of its install (for m365: `npm run auth`). The resulting token cache is stored **per user**,
-not in any checkout — for m365, `~/Library/Application Support/m365-mcp/` — so the deployment copy
-and a development checkout share one sign-in. The m365 email signature lives there too.
+The ordinary installer emits the same missing-entry warnings/manual steps and continues. It
+never installs the Confluent npm package, supplies org values, signs in or resumes scheduled tasks.
+A fresh machine is not a complete authenticated replica until these manual steps are done.
 
-## Adding another server
+## Deployment rules
 
-Append to `servers.json`:
+1. **Never hand-edit `~/.claude.json`.** It contains live project/session state. Use Claude's CLI.
+   Desktop's configuration-only file is merged with a backup. `supersedes` removes older keys for
+   managed servers in each selected host. Machine-local entries are not mutated.
+2. **Never store a versioned Node path in host config.** `mcp-node` follows nvm's `default` alias,
+   then the newest installed version, then `PATH`, avoiding stale `ENOENT` errors.
+3. **Never run a host from a development checkout.** `dir` is deployment-only, detached at a
+   release, normally under `~/.local/share/mcp`. A branched checkout or non-Git directory is refused.
+   Develop in `~/source/<repo>`, release, then re-run the installer. AI-Skills follows the same
+   separate-release-copy model at `~/.local/share/ai-skills`; see [../RELEASES.md](../RELEASES.md).
+
+## Capability gates and machine-local settings
+
+No secrets, tenant ids or internal URLs belong here. For an M365 tenant override, export
+`M365_TENANT_ID` before running the installer; it is not committed or printed in fallback commands.
+Auth tokens are never handled by this installer. Each managed server prints a `NEXT:` sign-in
+step; m365's cache/signature live per user in `~/Library/Application Support/m365-mcp/`, shared
+between development and deployment copies.
+
+M365 gates default off: `ALLOW_SEND` enables sending/meeting-invite capabilities, `ALLOW_DELETE`
+enables deletion/Deleted Items filing, and `ALLOW_RULES` enables mailbox-rule writes. Preview and
+confirmation requirements still apply; capability availability is not permission for unattended
+mailbox mutation. Fixed tool counts are omitted because they depend on the deployed release.
+
+Set non-secret capability policy in `servers.json`, **with owner approval**, not by editing a host
+entry: the installer constructs one env block for all selected hosts, replacing hand-added values.
+`ALLOW_DELETE=false` is explicit; sending/rule gates remain default-off. This is not a per-host
+policy mechanism.
+
+Memory remains **Pi-only**; this lane does not widen its host surface. Its configured write gate
+permits automatic attributed bank claims and authored archive decisions via `memory_record`.
+Core writes still require staged preview and confirmation. Inbound is cited with its source, never
+presented as the owner's view (repo contract §2a / INV-7). Private DailyDriver is provisioned by
+full setup before MCP installation, never by this standalone installer. Missing `requires` paths
+warn; the server itself refuses unsafe/missing data configuration.
+
+## Adding a server: schema
+
+The default `type` is `git` (existing entries need no migration):
 
 ```json
 {
@@ -107,49 +121,64 @@ Append to `servers.json`:
 }
 ```
 
-`dir` is expanded with `$HOME`, `ref` is `"latest"` (the newest `vX.Y.Z` release tag, resolved by
-`scripts/resolve-release.sh`) or an exact tag to hold the server back, and `entry` is relative to
-the checkout. The checkout is always detached at a tag, never a branch. Re-run `bash MCP/install-mcp-servers.sh`.
+`ref=latest` means the highest stable `vX.Y.Z`, resolved after fetching by
+`scripts/resolve-release.sh`; an exact tag holds a deployment back. `piPackage=true` registers
+server-shipped skills, such as `m365-tools`, from the deployment via `pi install <dir>`.
 
-Optional fields:
+For a remote server requiring only a URL, use an **environment-variable reference**, not a URL
+value. The installer supports this in Code and Pi; Desktop's connector setup is manual:
 
-- `"hosts"`: which hosts to register with, any of `claude-desktop`, `claude-code`, `pi`. Default is
-  all three. A host left out is skipped; an existing registration there is **not** removed.
-- `"requires"`: paths the server needs but this installer never provisions, such as a private data
-  repository. A missing path prints a `WARNING`; the server is still installed.
-- `env` values are expanded with `$HOME` (and other variables) before they are written to a host,
-  because GUI hosts pass them through literally. Never put a secret in `env` - this repository is
-  public.
+```json
+{
+  "name": "my-remote",
+  "type": "remote",
+  "url": "$MY_MCP_URL",
+  "hosts": ["pi", "claude-code"]
+}
+```
 
-The `memory` server (memory-mcp) uses all three: Pi only, its data repo `$HOME/source/DailyDriver`
-under `requires`, and `MEMORY_REPO` pointing at it. This installer never clones the data repository;
-`01 - Setup Mac Environment.sh` clones the private DailyDriver repo and writes
-`~/.config/memory-mcp/config.json` first (memory-mcp `docs/operations.md`, section 5.1).
+Export the URL locally before installing. Unset references and literal URLs are refused without
+printing values. Auth and additional restrictions remain manual; if the entry needs OAuth fields,
+headers, lifecycle settings or tool restrictions, use a machine-local reference instead so they
+are not overwritten:
 
-Set `"piPackage": true` when the server ships agent skills (a `pi` manifest in its `package.json`):
-the installer then runs `pi install <dir>` so Pi loads them, exactly as the setup script does for
-AI-Skills. m365-mcp uses this for its `m365-tools` skill. Claude hosts have no package mechanism; the
-`m365-martin` skill in AI-Skills tells them where to read `m365-tools` instead.
+```json
+{
+  "name": "my-local-registration",
+  "type": "machine-local",
+  "transport": "remote",
+  "hosts": ["pi"],
+  "configFile": "$HOME/.config/mcp/mcp.json",
+  "manualSetup": "Create the remote entry and complete interactive authentication locally."
+}
+```
 
-**Upgrading a server** means releasing it and re-running the installer: a machine whose checkout
-already exists fetches tags and moves to the newest release. **Holding one back** is a data change:
-set `ref` to the exact tag. See [`../RELEASES.md`](../RELEASES.md).
+`transport` is `remote` (requires `url`) or `stdio` (requires `command`); the entry's key must equal
+`name`. `configFile` must be `$HOME`-relative and point at an adapter-discovered registry; the
+installer only checks presence/shape. Never commit the file's values. These entries are Pi-only.
 
-## Behaviour
+Common Git/remote fields: `hosts` selects `claude-desktop`, `claude-code`, `pi` (default all),
+`supersedes` lists older keys, and `requires` lists external prerequisite paths. Omitted hosts are
+not unregistered. Git `env` and paths expand environment references before registration because
+GUI hosts do not expand them. Remote entries do not support `env` or `piPackage`.
 
-- **Idempotent.** A second run changes nothing on disk: Claude Desktop reports `already up to date`,
-  and Claude Code and Pi are re-registered with the same entry.
-- **Non-fatal.** Every failure — clone, checkout, build, missing `claude` CLI — prints a `WARNING`
-  and moves on, so one broken server cannot cost you the rest of the machine setup. A server is
-  skipped when its `dir` exists but is not a git checkout, or is a checkout on a branch — both mean
-  the directory is not one this installer owns.
-- **Skipped entirely** when `node` is not on `PATH`.
+## Behaviour and validation
 
-## Verifying
+- Re-runs converge: Desktop skips unchanged registrations; Code/Pi are re-registered identically;
+  machine-local configs are only read. Git fetch/build work can still occur.
+- Clone/release/build/registration failures warn and continue, so one server does not abort full
+  setup. Registration failure does not establish host health; check the warnings. This is not a
+  transactional installer: an existing host entry may survive a failed rebuild.
+- Provisioning is skipped when Node is absent; `--check-machine-local` needs only Python and is
+  read-only, even with Node absent.
 
 ```sh
-claude mcp list                                   # Claude Code's view, with health checks
-cd ~/.local/share/mcp/m365-mcp && npm run doctor   # the m365 server's own diagnosis
-pi mcp list                                         # Pi: state and tool count per server
-git -C ~/.local/share/mcp/memory-mcp describe --tags # memory: the deployed tag
+python3 scripts/test-deployment.py /path/to/AI-Skills  # temp HOME, mocked external commands
+claude mcp list                                     # Code's health view (run only after approval)
+# In interactive Pi: /mcp                            # adapter runtime health and OAuth
+cd ~/.local/share/mcp/m365-mcp && npm run doctor
+# Current deployment (not development checkout):
+git -C ~/.local/share/mcp/memory-mcp describe --tags --exact-match HEAD
 ```
+
+Live setup/auth/health checks require operator approval; sandbox tests do not attest live auth.

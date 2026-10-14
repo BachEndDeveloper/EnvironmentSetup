@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>@LABEL@</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>@RUN_SCRIPT@</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>@STATE_DIR@</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>@HOME@</string>
+        <key>TZ</key>
+        <string>Europe/Copenhagen</string>
+        <key>PATH</key>
+        <string>@PATH@</string>
+    </dict>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <false/>
+    <!-- Also prevents an unapproved first load at the next login. Explicit
+         launchctl enable overrides this default without rewriting the template. -->
+    <key>Disabled</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>@LOG_DIR@/launchd.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>@LOG_DIR@/launchd.stderr.log</string>
+</dict>
+</plist>

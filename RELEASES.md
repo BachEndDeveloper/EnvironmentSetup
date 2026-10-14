@@ -79,13 +79,19 @@ bash scripts/install-ai-skills.sh      # advances release, reconciles both hosts
 git -C ~/.local/share/ai-skills describe --tags --exact-match HEAD
 ```
 
-No scheduler is installed or resumed here; Cowork tasks remain paused pending a separately
-approved replacement. Deploying the released wrappers alone does not make unattended runs safe.
+Full macOS setup now installs the daily memory runner and a disabled per-user LaunchAgent.
+It does **not** load a new job unless `MEMORY_DAILY_ENABLE=1` is explicitly supplied, or the
+operator runs `bash scripts/install-memory-daily.sh --enable`. Reinstalls preserve prior opt-in:
+changed enabled jobs reload; disabled/unchanged installs make no launchctl call. Cowork tasks
+are not resumed. Deploy/review a release containing `memory-daily` and validate interactive auth before enabling;
+installing wrappers alone does not make unattended runs safe. See README's **Daily memory run**
+for disable/status, model selection, logs, schedule timezone and hardening notes.
 
 ## Sandbox gate (no live changes)
 
 ```sh
 python3 scripts/test-deployment.py /path/to/AI-Skills
+python3 scripts/test-memory-daily.py
 ```
 
 This uses a temporary HOME and mocked Git/npm/host CLIs to check latest/pinned releases,
@@ -93,7 +99,10 @@ checkout-to-deployment migration, idempotent relinking/registration, guards, all
 manual-reference preservation, remote registration and value-safe warnings. It never downloads,
 authenticates, creates tags or starts MCP servers. Run `bash -n` and ShellCheck on changed shell
 scripts and `git diff --check` in both repositories as well. Live installer/health commands above
-are operator follow-ups, not sandbox gates.
+are operator follow-ups, not sandbox gates. The daily-memory sandbox also uses temporary HOME
+and mocked Pi/launchctl/osascript to cover opt-in/out, idempotent installs, overlap/stale locks,
+read-only prerequisites, marker/exit failures, partial notifications and log retention. It never
+loads a real launchd job or invokes a real agent.
 
 ## Holding a machine back
 

@@ -243,4 +243,8 @@ if $AI_SKILLS_READY && [[ -f "$AI_SKILLS_DIR/scripts/link-claude-code.sh" ]]; th
 	env AI_SKILLS_DIR="$AI_SKILLS_DIR" bash "$AI_SKILLS_DIR/scripts/link-claude-code.sh" --apply || echo "WARNING: Claude Code skills relinking failed." >&2
 fi
 
+# Daily memory ritual: install the runner/agent only by default. Enabling requires
+# an explicit MEMORY_DAILY_ENABLE=1; existing enabled jobs are not silently disabled.
+bash scripts/install-memory-daily.sh || echo "WARNING: daily memory runner installation failed - see README 'Daily memory run'." >&2
+
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."

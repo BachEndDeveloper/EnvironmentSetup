@@ -116,7 +116,7 @@ retried; memory-mcp's BM25 fallback remains the retrieval fallback.
 
 **Rebuild time:** Measured 2026-10-15 on an Apple M4 Pro (24 GB): **~1 min 16 s** for ~740 documents / ~2,300 chunks (update + embed, models already cached). First run additionally downloads ~2 GB of models.
 
-**Measured full rebuild / hardware:** Apple M4 Pro, 24 GB, macOS: `install-qmd.sh --rebuild` took 1 min 16 s wall time on 2026-10-15 (742 documents, 2,285 chunks, models cached).
+**Measured full rebuild / hardware:** Apple M4 Pro, 24 GB, macOS: `install-qmd.sh --rebuild` took 1 min 16 s wall time on 2026-10-15 (742 documents, 2,285 chunks, models cached). Cold installs additionally depend on model
 network downloads; budget roughly 2 GB for the full model set. `embed` only needs
 the embedding model. Models download automatically on first use, never from Git;
 search queries/content remain local.

@@ -291,12 +291,17 @@ The disposable index lives at `~/.cache/qmd/dailydriver.sqlite`; models download
 on first use to `~/.cache/qmd/models/`. **Never copy or commit either.** Rebuild on
 a new machine by cloning DailyDriver and running the installer, not by migrating
 cache files. `--rebuild` discards only this named index/sidecars, refuses running
-qmd, an active WAL or a held memory writer lock, then updates/embeds. Rebuild time
-is **not yet measured (hardware-dependent)**; allow additional network time for
-cold model downloads (roughly 2 GB for all models).
+qmd, an active WAL or a held memory writer lock, then updates/embeds. Existing
+indexes with changed names/roots/masks/ignore globs **require `--rebuild`**: qmd
+otherwise retains orphan rows from removed collections/paths. Labels alone need
+no rebuild. **Go-live needs `--rebuild`** because the benchmark used a lane-worktree
+root and extra ignore globs. Rebuild time is **not yet measured
+(hardware-dependent)**; allow additional time for cold model downloads (roughly
+2 GB for all models).
 
-`--check` verifies the pin, canonical/rendered-copy consistency, SQLite
-collection paths/masks and last embedded-chunk age without writing. `mcp-node`
+`--check` verifies the pin, canonical/rendered-copy consistency, installed-YAML
+topology and last embedded-chunk age without writing; it prints `topology: matches`
+or `topology: differs (rebuild required)`. `mcp-node`
 adds local launchers and the selected Node bin to GUI-host PATH; the qmd installer
 supplies a local launcher for custom npm prefixes. No `MEMORY_QMD_BIN` entry in
 `MCP/servers.json` is needed, and qmd's own MCP server/skill is not registered.

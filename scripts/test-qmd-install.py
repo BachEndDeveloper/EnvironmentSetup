@@ -220,7 +220,7 @@ def main():
         run(success=False)
         assert snapshot() == before and len(calls()) == count
         config.unlink()
-        run('--no-embed')
+        run('--rebuild', extra={'EXPECT_REBUILD': '1'})
         print('PASS: Unicode flow-YAML path spans render correctly; a symlinked host copy cannot overwrite canonical config')
 
         before = snapshot()
@@ -231,6 +231,7 @@ def main():
         before = snapshot()
         output = run('--check')
         assert 'check OK' in output.stdout and 'last embed age=360' in output.stdout
+        assert 'topology: matches' in output.stdout
         assert snapshot() == before
         run('--check', success=False, extra={'MOCK_QMD_VERSION': '2.8.30'})
         assert snapshot() == before
@@ -238,10 +239,35 @@ def main():
         before = snapshot()
         run('--check', success=False)
         assert snapshot() == before
-        run('--no-embed')
+        run('--no-embed', success=False)
+        run('--rebuild', extra={'EXPECT_REBUILD': '1'})
         assert config.read_bytes() == expected_copy.encode('utf-8')
+        run('--no-embed')
         assert calls('qmd')[-1] == ['--index', 'dailydriver', 'update']
-        print('PASS: repeats are idempotent; doctor checks exact pin/canonical-copy drift and embed age without writing; --no-embed skips embed')
+        print('PASS: repeats are idempotent; doctor checks exact pin/copy drift and age read-only; unknown topology requires rebuild; --no-embed skips embed')
+
+        for transform in (
+            lambda d: d['collections']['wiki'].update(path=str(home / 'old-lane/memory/wiki')),
+            lambda d: d['collections']['wiki'].update(pattern='*.md'),
+            lambda d: d['collections'].update(old_wiki=d['collections'].pop('wiki')),
+            lambda d: d['collections']['wiki'].update(ignore=['synthetic-ignore/**']),
+        ):
+            old = yaml_data(expected_copy)
+            transform(old)
+            config.write_text(json.dumps(old))
+            before = snapshot()
+            count = len(calls('qmd'))
+            output = run('--no-embed', success=False)
+            assert 'qmd keeps orphan rows' in output.stderr and '--rebuild' in output.stderr
+            assert snapshot() == before and len(calls('qmd')) == count
+            output = run('--check', success=False)
+            assert 'topology: differs (rebuild required)' in output.stdout and snapshot() == before
+            run('--rebuild', extra={'EXPECT_REBUILD': '1'})
+            assert 'topology: matches' in run('--check').stdout
+        canonical.write_bytes(canonical.read_bytes().replace(b'Synthetic routing', b'Synthetic updated routing'))
+        run('--no-embed')
+        assert 'topology: matches' in run('--check').stdout
+        print('PASS: changed roots/masks/names/ignore globs refuse normal update; guarded rebuild restores matches; labels/comments-only changes need no rebuild')
 
         good_text = canonical.read_bytes()
         for transform in (
@@ -251,6 +277,7 @@ def main():
             lambda d: d['collections']['wiki'].update(path='$MEMORY_REPO/memory/wiki/../core'),
             lambda d: d['collections']['wiki'].update(path='$MEMORY_REPO/outside'),
             lambda d: d['collections']['wiki'].update(pattern='**/*'),
+            lambda d: d['collections']['wiki'].update(ignore='not-a-list'),
             lambda d: d['collections']['wiki'].update(update=''),
             lambda d: d.update(update='synthetic-command'),
             lambda d: d['collections']['bank'].update(context={'update': 'forbidden even here'}),
@@ -347,22 +374,23 @@ def main():
         with sqlite3.connect(database) as db:
             db.execute('DELETE FROM content_vectors')
         assert 'never (no embedded chunks)' in run('--check').stdout
-        with sqlite3.connect(database) as db:
-            db.execute('UPDATE store_collections SET path=? WHERE name=?', (str(repo / 'memory/quarantine'), 'bank'))
+        wal.write_bytes(b'synthetic-active-wal')
         before = snapshot()
         run('--check', success=False)
         assert snapshot() == before
-        print('PASS: pin drift repaired, embed failures propagated, and doctor handles unembedded or unsafe SQLite-only state read-only')
+        wal.unlink()
+        print('PASS: pin drift repaired, embed failures propagated, and doctor handles unembedded/active-WAL state read-only')
 
         second = home / 'alternate memory'
         make_repo(second)
         settings = home / '.config/memory-mcp/config.json'
         settings.parent.mkdir(parents=True)
         settings.write_text(json.dumps({'memoryRepo': str(second)}))
-        run('--no-embed')
+        run('--no-embed', success=False)
+        run('--rebuild', extra={'EXPECT_REBUILD': '1'})
         assert (second / 'qmd/dailydriver.yml').exists()
         assert yaml_data(config.read_text())['collections']['wiki']['path'] == str(second / 'memory/wiki')
-        run('--no-embed', extra={'MEMORY_REPO': str(repo)})
+        run('--rebuild', extra={'MEMORY_REPO': str(repo), 'EXPECT_REBUILD': '1'})
         assert yaml_data(config.read_text())['collections']['wiki']['path'] == str(repo / 'memory/wiki')
         for override in ('INDEX_PATH', 'QMD_GENERATE_MODEL'):
             before = snapshot()

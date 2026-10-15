@@ -50,8 +50,11 @@ portable path tokens and explicit model pins; Martin reviews/commits it himself.
 only proposes a missing config (uncommitted), then validates and renders the host copy.
 It never stages/commits/pushes, mutates collections ad hoc or copies index/model caches.
 See [docs/qmd.md](docs/qmd.md) for config ownership, `--rebuild`, `--check`, first-use
-downloads, upgrade/re-benchmark steps and GUI PATH discovery. Rebuild time is not yet measured
-(hardware-dependent); the runbook has the measurement line for the benchmark result.
+downloads, upgrade/re-benchmark steps and GUI PATH discovery. Changed collection names,
+roots, masks or ignore globs require a guarded `--rebuild` because qmd retains orphan rows;
+labels-only changes do not. The go-live install requires `--rebuild` to replace the benchmark
+lane-worktree/ignore topology. Rebuild time is not yet measured (hardware-dependent); the
+runbook has the measurement line for the benchmark result.
 
 ## The release contract (every released repository)
 
@@ -122,7 +125,8 @@ loads a real launchd job or invokes a real agent. The qmd sandbox uses temporary
 real Ruby YAML/Node and mocked npm/qmd/brew/git/pgrep. It covers the exact pin, SQLite,
 missing-config proposals without Git mutation, authoritative private-config rendering with
 byte preservation, canonical/rendered safety checks before installation, read-only doctor,
-idempotence, rebuild deletion scope and process/WAL/writer-lock guards, deferred embedding,
+installed-YAML topology-change refusal (including masks/paths/names/ignores) and labels-only
+updates, idempotence, rebuild deletion scope and process/WAL/writer-lock guards, deferred embedding,
 failure handling, settings precedence and GUI PATH discovery. It never installs real
 packages, downloads models or stages/commits/pushes a repository.
 

@@ -184,7 +184,30 @@ def render_config(text, spans, expected):
     return HEADER + text
 
 
-def read_index(database):
+def topology(data):
+    if not isinstance(data, dict) or not isinstance(data.get('collections'), dict):
+        raise ValueError('invalid collection topology')
+    result = {}
+    for name, collection in data['collections'].items():
+        if not isinstance(collection, dict):
+            raise ValueError('invalid collection topology')
+        ignored = collection.get('ignore', [])
+        if not isinstance(ignored, list) or not all(isinstance(pattern, str) for pattern in ignored):
+            raise ValueError('collection ignore globs must be a list of strings')
+        result[name] = (collection.get('path'), collection.get('pattern'), tuple(sorted(set(ignored))))
+    return result
+
+
+def host_topology_matches(config, canonical):
+    if not config.is_file():
+        return False
+    try:
+        return topology(parse_yaml(config.read_bytes().decode('utf-8'))['config']) == topology(canonical)
+    except (ValueError, UnicodeError):
+        return False
+
+
+def read_last_embed(database):
     if not database.is_file():
         raise ValueError('named index does not exist')
     wal = Path(str(database) + '-wal')
@@ -192,10 +215,7 @@ def read_index(database):
         raise ValueError('index has an active WAL; finish the qmd refresh and retry')
     # Immutable reads cannot create journal/SHM sidecars or migrate qmd's store.
     with sqlite3.connect(database.as_uri() + '?mode=ro&immutable=1', uri=True) as db:
-        collections = {name: {'path': path, 'pattern': pattern}
-                       for name, path, pattern in db.execute('SELECT name, path, pattern FROM store_collections')}
-        last_embed = db.execute('SELECT MAX(embedded_at) FROM content_vectors').fetchone()[0]
-    return collections, last_embed
+        return db.execute('SELECT MAX(embedded_at) FROM content_vectors').fetchone()[0]
 
 
 def embed_age(last_embed):
@@ -273,12 +293,20 @@ def main():
     parsed = parse_yaml(text)
     validate_config(parsed['config'], expected, forbidden, canonical=True)
     rendered = render_config(text, parsed['paths'], expected)
-    validate_config(parse_yaml(rendered)['config'], expected, forbidden)
+    rendered_data = parse_yaml(rendered)['config']
+    validate_config(rendered_data, expected, forbidden)
+    topology(rendered_data)  # Validate ignore-glob types before installation too.
     home = Path.home().resolve()
     config = home / '.config/qmd/dailydriver.yml'
     if config.resolve() != config:
         raise ValueError('installed qmd config/directory must not be a symlink')
     database = home / '.cache/qmd/dailydriver.sqlite'
+    matches = not database.exists() or host_topology_matches(config, rendered_data)
+    if args.check:
+        print('topology: matches' if matches else 'topology: differs (rebuild required)')
+    elif not args.rebuild and not matches:
+        raise ValueError('index topology differs (names, roots, masks or ignore globs); qmd keeps orphan rows '
+                         'from removed collections/paths. Run scripts/install-qmd.sh --rebuild')
     if args.rebuild:
         rebuild_guard(repo, database)
     # Config validation precedes npm/brew installation and all writes.
@@ -322,9 +350,9 @@ def main():
             errors.append('installed config differs from the rendered canonical config')
         age = 'unknown'
         try:
-            collections, last_embed = read_index(database)
-            validate_config({'collections': collections, 'models': parsed['config']['models']}, expected, forbidden)
-            age = embed_age(last_embed)
+            age = embed_age(read_last_embed(database))
+            if not matches:
+                errors.append('index topology differs; run scripts/install-qmd.sh --rebuild')
         except (ValueError, sqlite3.Error) as error:
             errors.append(str(error))
         for error in errors:

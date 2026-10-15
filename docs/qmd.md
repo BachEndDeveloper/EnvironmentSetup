@@ -92,6 +92,20 @@ bash scripts/install-qmd.sh --check      # read-only doctor; never propose or re
 Full macOS setup also calls this installer after MCP/AI-Skills and before the
 daily scheduler. No full machine setup is required to install/rebuild qmd.
 
+**Topology changes require a rebuild.** Topology means collection names, root
+paths, masks and ignore globs. With an existing index, the installer compares the
+installed YAML's topology with the rendered canonical config before normal
+installation/update. Different or unknown topology is refused with `--rebuild`
+instructions: qmd keeps orphan document/content rows when collections or paths
+are removed from its config. Removing any previously indexed collection or path
+**ALWAYS requires `--rebuild`**, even when the new canonical config excludes it.
+Context labels/comments alone are metadata and do not require a rebuild. No
+existing index means a normal fresh build is allowed.
+
+**Go-live installation requires `--rebuild`:** the benchmark index was built
+against a lane-worktree root and extra ignore globs, not the final canonical
+checkout topology. Do not reuse that index with an ordinary incremental update.
+
 `--rebuild` refuses a running qmd process, an active nonempty WAL or a held
 `memory-mcp-writer.lock` in Git's common directory. Stop concurrent search/index
 users and finish the memory writer before retrying; do not delete their locks.
@@ -111,8 +125,11 @@ search queries/content remain local.
 ## Check, GUI discovery and upgrade
 
 `--check` validates canonical config, compares the complete rendered host copy,
-checks the npm package/CLI version and SQLite collection roots/masks, and prints
-latest embedded-chunk age (or `never`). This is not a last-run ledger: a no-op
+checks the npm package/CLI version, and prints `topology: matches` or
+`topology: differs (rebuild required)`. Topology is read from the installed YAML,
+not SQLite's internal collection schema; only embed age is read from SQLite.
+Labels-only copy drift still needs an ordinary installer run, not a rebuild.
+The doctor also prints latest embedded-chunk age (or `never`). This is not a last-run ledger: a no-op
 incremental embed need not update any chunk timestamp. No arbitrary age threshold
 is applied. The doctor reads SQLite immutably and refuses an active WAL rather
 than creating sidecars or reading a stale checkpoint. It performs no installation,

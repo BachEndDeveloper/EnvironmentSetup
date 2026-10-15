@@ -117,7 +117,8 @@ python3 scripts/test-qmd-install.py
 
 This uses a temporary HOME and mocked Git/npm/host CLIs to check latest/pinned releases,
 checkout-to-deployment migration, idempotent relinking/registration, guards, all six declarations,
-manual-reference preservation, remote registration and value-safe warnings. It never downloads,
+manual-reference preservation, remote registration, value-safe warnings, and SSH-auth-only
+same-repository HTTPS clone fallback (including both-installer coverage and failed-auth guards). It never downloads,
 authenticates, creates tags or starts MCP servers. Run `bash -n` and ShellCheck on changed shell
 scripts and `git diff --check` in both repositories as well. Live installer/health commands above
 are operator follow-ups, not sandbox gates. The daily-memory sandbox also uses temporary HOME

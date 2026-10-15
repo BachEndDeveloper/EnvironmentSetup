@@ -243,24 +243,31 @@ from that file and drops anything added by hand. See
 ### Personal AI skills
 
 Personal skills live in the private [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills)
-repository rather than in this machine-setup repository. The macOS setup script always clones it to
-`~/source/AI-Skills` (or `AI_SKILLS_DIR`), checks out its newest release (`AI_SKILLS_REF="latest"`), and registers it as a
-local Pi package.
+repository, not in this machine-setup repository. Full macOS setup calls
+`scripts/install-ai-skills.sh`, which deploys a detached release copy at
+`~/.local/share/ai-skills` (or `AI_SKILLS_DIR`), registers it with Pi and relinks
+Claude Code skills. It never installs from the development checkout.
 
-The repository URL and the release rule are deliberately hardcoded near the Pi installation block
-in `01 - Setup Mac Environment.sh` — see `AI_SKILLS_REPO` and `AI_SKILLS_REF` there. `latest` follows
-the newest release tag, so shipping a skill change means releasing AI-Skills, not editing this
-repository; set `AI_SKILLS_REF` to an exact tag only to hold a machine back (see
-[`RELEASES.md`](RELEASES.md)). Update `AI_SKILLS_REPO` only when the repository moves. Because the
-repository is private, a new machine must have GitHub SSH access configured before this step runs;
-if it doesn't, the clone (or, on a re-run, the fetch) prints a `WARNING`, a second one covers the
-checkout and local install, the skills bootstrap is skipped, and the rest of the setup continues to
-completion.
+The repository URL and default release rule live in `scripts/install-ai-skills.sh`
+(`AI_SKILLS_REPO`, `AI_SKILLS_REF`). `latest` follows the newest stable release tag;
+set `AI_SKILLS_REF` to an exact tag only to hold a machine back (see
+[`RELEASES.md`](RELEASES.md)). Shipping a skill change means releasing AI-Skills,
+not editing this repository.
+
+AI-Skills and managed MCP clones try GitHub SSH first. On an **SSH authentication
+failure** (for example, no loaded key), the shared clone helper retries the same
+repository over HTTPS using existing Git credential helpers. No credentials are
+embedded; HTTPS terminal password prompts are disabled. Private repositories
+still require authorised access (configure GitHub HTTPS authentication beforehand
+if SSH is unavailable). Host-key, network and other failures do not trigger a
+fallback. Existing deployments keep their current origin for fetches; this is a
+clone fallback, not a remote migration. Failed access/release installation warns
+and skips the skills bootstrap during full setup.
 
 ## Local search (qmd)
 
 Use the **separate, standalone** installer; full macOS setup also calls it after
-MCP/AI-Skills and before the daily scheduler. It pins npm-global
+MCP/AI-Skills and before the on-demand memory runner/disabled scheduler template. It pins npm-global
 **`@tobilu/qmd@2.8.3`** and ensures Homebrew SQLite. Requirements: Node >=22, npm,
 Homebrew, Python 3 and macOS Ruby's standard-library YAML parser. Bun is not
 required by the npm distribution. Git/pgrep are used for rebuild safety checks.

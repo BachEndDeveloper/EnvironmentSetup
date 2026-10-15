@@ -25,7 +25,7 @@ elif [[ -e "$AI_SKILLS_DIR" ]]; then
 	exit 1
 else
 	mkdir -p "$(dirname "$AI_SKILLS_DIR")"
-	git clone "$AI_SKILLS_REPO" "$AI_SKILLS_DIR"
+	bash "$setup_dir/scripts/git-clone-with-https-fallback.sh" "$AI_SKILLS_REPO" "$AI_SKILLS_DIR"
 	# A failed release resolution must remain retryable, not look like a dev branch.
 	git -C "$AI_SKILLS_DIR" checkout --detach HEAD
 fi

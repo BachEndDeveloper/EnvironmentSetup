@@ -81,6 +81,15 @@ A fresh machine is not a complete authenticated replica until these manual steps
    Develop in `~/source/<repo>`, release, then re-run the installer. AI-Skills follows the same
    separate-release-copy model at `~/.local/share/ai-skills`; see [../RELEASES.md](../RELEASES.md).
 
+New managed Git clones try SSH first. On SSH authentication failure (including
+no loaded key), the shared `scripts/git-clone-with-https-fallback.sh` helper retries
+the **same GitHub repository** over HTTPS, with local Git credential helpers and
+no embedded credentials or terminal password prompts. Private repos still need
+GitHub authorisation. Host-key verification, DNS/network and missing-repository
+failures do not trigger fallback. Existing origins/fetch behaviour are unchanged.
+Both-transport clone failure warns and skips that server; no release/build/host
+registration proceeds for that new deployment.
+
 ## Capability gates and machine-local settings
 
 No secrets, tenant ids or internal URLs belong here. For an M365 tenant override, export

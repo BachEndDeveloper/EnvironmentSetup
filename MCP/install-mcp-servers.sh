@@ -149,8 +149,8 @@ PY
 			continue
 		else
 			mkdir -p "$(dirname "$SRV_DIR")"
-			git clone "$SRV_REPO" "$SRV_DIR" || {
-				echo "WARNING: could not clone $SRV_NAME (check your GitHub SSH key) - skipping." >&2
+			bash ../scripts/git-clone-with-https-fallback.sh "$SRV_REPO" "$SRV_DIR" || {
+				echo "WARNING: could not clone $SRV_NAME (check your GitHub SSH/HTTPS access) - skipping." >&2
 				continue
 			}
 			# Keep a clone retryable even if no release/build is available yet.

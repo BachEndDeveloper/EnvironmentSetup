@@ -114,10 +114,9 @@ It deletes **only** `dailydriver.sqlite` and its `-wal`/`-shm` sidecars, then ru
 models and other named indexes. A failed rebuild can leave qmd unavailable until
 retried; memory-mcp's BM25 fallback remains the retrieval fallback.
 
-**Rebuild time:** not yet measured (hardware-dependent).
+**Rebuild time:** Measured 2026-10-15 on an Apple M4 Pro (24 GB): **~1 min 16 s** for ~740 documents / ~2,300 chunks (update + embed, models already cached). First run additionally downloads ~2 GB of models.
 
-**Measured full rebuild / hardware:** not yet measured; record the benchmark
-measurement here when available. Cold installs additionally depend on model
+**Measured full rebuild / hardware:** Apple M4 Pro, 24 GB, macOS: `install-qmd.sh --rebuild` took 1 min 16 s wall time on 2026-10-15 (742 documents, 2,285 chunks, models cached).
 network downloads; budget roughly 2 GB for the full model set. `embed` only needs
 the embedding model. Models download automatically on first use, never from Git;
 search queries/content remain local.

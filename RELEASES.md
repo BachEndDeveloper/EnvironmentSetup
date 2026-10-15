@@ -38,6 +38,16 @@ repo. The six-server inventory and read-only prerequisite check are in `MCP/READ
 Upstream dotnet/Aspire skills, runtimes and third-party Pi packages retain their existing upstream
 update mechanisms; this contract does not imply they have the same release-copy isolation.
 
+**Local search exception (explicit npm pin):** qmd is installed globally as
+`@tobilu/qmd@2.8.3`, with the single installer version variable in
+`scripts/install-qmd.sh`; it does not follow npm latest. Node >=22 is required; Bun is not
+needed for this npm distribution. Homebrew SQLite remains Homebrew-managed. Re-run the qmd
+installer after a deliberate pin change, then its read-only `--check`, and re-benchmark
+retrieval before accepting an upgrade. Full macOS setup now configures the `dailydriver`
+named index and embeds before installing the scheduler; no qmd MCP registration is added.
+See README's **Local search (qmd)** for paths, first-use model downloads, `--no-embed`,
+GUI-host PATH discovery and the four-collection quarantine/core boundary.
+
 ## The release contract (every released repository)
 
 1. **Tag from `main`, annotated, `vX.Y.Z`** (`git tag -a`). The version in the package manifest
@@ -92,6 +102,7 @@ for disable/status, model selection, logs, schedule timezone and hardening notes
 ```sh
 python3 scripts/test-deployment.py /path/to/AI-Skills
 python3 scripts/test-memory-daily.py
+python3 scripts/test-qmd-install.py
 ```
 
 This uses a temporary HOME and mocked Git/npm/host CLIs to check latest/pinned releases,
@@ -102,7 +113,12 @@ scripts and `git diff --check` in both repositories as well. Live installer/heal
 are operator follow-ups, not sandbox gates. The daily-memory sandbox also uses temporary HOME
 and mocked Pi/launchctl/osascript to cover opt-in/out, idempotent installs, overlap/stale locks,
 read-only prerequisites, marker/exit failures, partial notifications and log retention. It never
-loads a real launchd job or invokes a real agent.
+loads a real launchd job or invokes a real agent. The qmd sandbox uses temporary HOME,
+mocked npm/qmd/brew and real Node to verify the exact pin, SQLite prerequisite, four collection
+paths/contexts, repeat installs, wrong-path repair, quarantine/core refusal and cleanup,
+read-only doctor (including SQLite-only violations), deferred embedding/failure handling,
+settings precedence and minimal-PATH launcher discovery. It never installs real packages or
+downloads models.
 
 ## Holding a machine back
 

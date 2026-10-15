@@ -65,6 +65,7 @@ fi
 # nvm.sh is not written against `set -e`/`set -u`, so relax them for the source only. The
 # wrapper deliberately covers just the `.` line: the nvm calls below run fine under -eu.
 set +eu
+# shellcheck source=/dev/null # nvm is installed/downloaded on the target machine.
 . "$NVM_DIR/nvm.sh"
 set -eu
 command -v nvm >/dev/null 2>&1 || {
@@ -242,6 +243,9 @@ AI_SKILLS_DIR="${AI_SKILLS_DIR:-$HOME/.local/share/ai-skills}"
 if $AI_SKILLS_READY && [[ -f "$AI_SKILLS_DIR/scripts/link-claude-code.sh" ]]; then
 	env AI_SKILLS_DIR="$AI_SKILLS_DIR" bash "$AI_SKILLS_DIR/scripts/link-claude-code.sh" --apply || echo "WARNING: Claude Code skills relinking failed." >&2
 fi
+
+# Local hybrid search: pinned qmd, isolated dailydriver index and first embeddings.
+bash scripts/install-qmd.sh || echo "WARNING: qmd provisioning failed - see README 'Local search (qmd)'." >&2
 
 # Daily memory ritual: install the runner/agent only by default. Enabling requires
 # an explicit MEMORY_DAILY_ENABLE=1; existing enabled jobs are not silently disabled.

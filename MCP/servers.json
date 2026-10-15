@@ -23,7 +23,8 @@
       "env": {
         "ALLOW_SEND": "true",
         "ALLOW_DELETE": "true",
-        "ALLOW_RULES": "true"
+        "ALLOW_RULES": "true",
+        "CLIENT_ID": "557821c4-669d-4af2-aa4e-20d13e4de25a"
       },
       "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id; export M365_TENANT_ID before setup for a machine-local override, never commit a real tenant id. All write gates are ON by the owner's decision (all write functionality wanted; security engaged; separate app registration). Every send, delete and rule change still goes through the server's staged preview + confirm_action approval, so 'on' means 'ask', not 'execute silently'. These env gates are superseded by the per-tool always/ask/off policy file once feature F0 ships; set any of them to 'false' here to force a capability off on every host.",
       "_dirNote": "A deployment-only copy that the installer moves between tags. Never point this at the checkout you develop in: the installer refuses a checkout that is on a branch, and hosts would otherwise run whatever you last built. Develop in ~/source/... as usual; ship by releasing and re-running the installer.",

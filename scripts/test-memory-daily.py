@@ -51,7 +51,7 @@ if command == 'launchctl':
     path.write_text(json.dumps(state))
 elif command == 'pi':
     assert args[:2] == ['-p', '--no-session']
-    assert args[-1] == 'Run the memory-daily skill.'
+    assert args[-1] in ('Run the memory-daily skill.', 'run memory-daily catch-up')
     if os.environ.get('MOCK_PI_WAIT'):
         (root / 'pi-ready').write_text('ready')
         deadline = time.monotonic() + 15
@@ -60,6 +60,10 @@ elif command == 'pi':
             time.sleep(0.02)
     print(os.environ.get('MOCK_PI_OUTPUT', 'Synthetic run.\nMEMORY-DAILY: OK'))
     sys.exit(int(os.environ.get('MOCK_PI_EXIT', '0')))
+elif command == 'qmd-check':
+    assert args == ['--check']
+    print('qmd check: synthetic read-only summary')
+    sys.exit(int(os.environ.get('MOCK_QMD_EXIT', '0')))
 elif command == 'osascript':
     assert args[0] == '-e' and 'display notification' in args[1]
     assert 'synthetic-private-output' not in args[1]
@@ -80,7 +84,7 @@ def main():
         shutil.copytree(source / 'scripts', setup / 'scripts')
         bin_dir = root / 'bin'
         bin_dir.mkdir()
-        for name in ('pi', 'launchctl', 'osascript'):
+        for name in ('pi', 'launchctl', 'osascript', 'qmd-check'):
             path = bin_dir / name
             path.write_text(MOCK)
             path.chmod(0o755)
@@ -88,7 +92,10 @@ def main():
         env = {'HOME': str(home), 'USER': 'Sandbox_User', 'SANDBOX_ROOT': str(root),
                'PATH': f'{bin_dir}:{Path(sys.executable).parent}:/usr/bin:/bin',
                'LC_ALL': 'C', 'TMPDIR': str(root), 'PYTHONDONTWRITEBYTECODE': '1'}
+        # The qmd doctor has its own sandbox suite; mock only that boundary here.
+        (setup / 'scripts/install-qmd.sh').write_text('#!/usr/bin/env bash\nexec qmd-check "$@"\n')
         installer = setup / 'scripts/install-memory-daily.sh'
+        on_demand = setup / 'scripts/memory-run.sh'
         runner = home / '.local/share/memory-daily/run.sh'
         plist = home / 'Library/LaunchAgents/local.sandbox-user.memory-daily.plist'
         log_dir = home / 'Library/Logs/memory-daily'
@@ -125,6 +132,18 @@ def main():
             logs = list(log_dir.glob('????-??-??.log'))
             assert len(logs) == 1, logs
             return logs[0].read_text()
+
+        before = snapshot()
+        output = run(on_demand, 'status').stdout
+        assert 'no dated log found' in output and 'unloaded' in output and 'qmd check:' in output
+        assert snapshot() == before and not calls('pi')
+        for args in ((), ('other',), ('daily', '--model'), ('daily', '--model', ''),
+                     ('daily', '--model', '--bad'), ('daily', '--unknown', 'provider/id')):
+            run(on_demand, *args, success=False)
+        assert not calls('pi') and snapshot() == before
+        print('PASS: on-demand status without an installation is read-only; invalid command/model arguments fail before writes')
+        # Ignore the status-only launchctl print above for the install assertions.
+        (root / 'calls.jsonl').unlink()
 
         output = run(installer).stdout
         assert output.splitlines()[-1] == 'memory-daily: installed, disabled -- enable with scripts/install-memory-daily.sh --enable'
@@ -200,6 +219,28 @@ def main():
         run(installer, '--unknown', success=False)
         print('PASS: explicit flag/env enable, persistent disable/status, preserved opt-in, changed-enabled reloads and no calls for unchanged/disabled installs')
 
+        # Full setup's mode ignores inherited enable and previous opt-in. It
+        # queries only loaded state; no silent reversal of an explicit opt-in.
+        run(installer, '--disable')
+        before_calls = len(calls('launchctl'))
+        result = run(installer, '--install-disabled', extra={'MEMORY_DAILY_ENABLE': '1'})
+        assert 'on-demand only' in result.stdout and not state()['loaded']
+        assert [c['args'][0] for c in calls('launchctl')[before_calls:]] == ['print']
+        run(installer, '--enable')
+        before_state = state()
+        before_calls = len(calls('launchctl'))
+        # A changed shared runner must not reload an existing job in setup mode.
+        common_source = setup / 'scripts/memory-daily/common.sh'
+        common_source.write_text(common_source.read_text() + '\n# Synthetic on-demand update.\n')
+        result = run(installer, '--install-disabled', extra={'MEMORY_DAILY_ENABLE': '1'})
+        assert 'ENABLED (loaded)' in result.stderr and 'DEC-0029' in result.stderr
+        assert 'scripts/install-memory-daily.sh --disable' in result.stderr
+        assert state() == before_state
+        assert [c['args'][0] for c in calls('launchctl')[before_calls:]] == ['print']
+        assert (state_dir / 'common.sh').read_bytes() == common_source.read_bytes()
+        run(installer, '--disable')
+        print('PASS: --install-disabled ignores env/prior opt-in, never loads/reloads/unloads, warns prominently if already loaded')
+
         daily = home / 'source/DailyDriver'
         (daily / '.git').mkdir(parents=True)
         registry = write_registry({'mcpServers': {'memory': {'command': 'synthetic-memory'},
@@ -224,6 +265,36 @@ def main():
         expected_date = subprocess.check_output(['date', '+%Y-%m-%d'], env=env | {'TZ': 'Europe/Copenhagen'}, text=True).strip()
         assert dated_log.name == expected_date + '.log'
         print('PASS: run.sh uses exact headless flags/prompt, optional model, Copenhagen date/TZ, private neutral cwd and read-only config')
+
+        summary = ('Memory daily — synthetic; mode=normal; batches=1\n'
+                   'Counts: synthetic=1\nWritten: none\nFailures: none\nMEMORY-DAILY: OK')
+        result = run(on_demand, 'daily', '--model', 'provider/model', extra={'MOCK_PI_OUTPUT': summary})
+        assert summary in result.stdout and summary in log()
+        assert 'Final marker: MEMORY-DAILY: OK' in result.stdout and f'Log: {dated_log}' in result.stdout
+        assert calls('pi')[-1]['args'] == ['-p', '--no-session', '--model', 'provider/model', 'Run the memory-daily skill.']
+        assert calls('pi')[-1]['tz'] == 'Europe/Copenhagen' and calls('pi')[-1]['cwd'] == str(state_dir)
+        before = snapshot()
+        pi_before = len(calls('pi'))
+        result = run(on_demand, 'status')
+        assert 'Memory daily — synthetic' in result.stdout and 'Counts: synthetic=1' in result.stdout
+        assert 'MEMORY-DAILY: OK' in result.stdout and 'qmd check:' in result.stdout and 'unloaded' in result.stdout
+        assert snapshot() == before and len(calls('pi')) == pi_before
+        run(on_demand, 'status', success=False, extra={'MOCK_QMD_EXIT': '6'})
+        assert snapshot() == before and len(calls('pi')) == pi_before
+        # Installed runner and status helpers must not depend on a source checkout.
+        installed_on_demand = state_dir / 'memory-run.sh'
+        result = run(installed_on_demand, 'catch-up', extra={'MOCK_PI_OUTPUT': 'MEMORY-DAILY: PARTIAL 1 step(s) skipped'})
+        assert calls('pi')[-1]['args'] == ['-p', '--no-session', 'run memory-daily catch-up']
+        assert 'Final marker: MEMORY-DAILY: PARTIAL 1 step(s) skipped' in result.stdout
+        run(installed_on_demand, 'status')
+        result = run(on_demand, 'daily', success=False, extra={'MOCK_PI_OUTPUT': 'truncated synthetic run'})
+        assert 'FAILED:' in result.stdout and 'Final marker: none' in result.stdout and f'Log: {dated_log}' in result.stdout
+        before = snapshot()
+        result = run(on_demand, 'status')
+        assert 'Summary: unavailable' in result.stdout and 'Final marker: unavailable' in result.stdout
+        assert 'Memory daily — synthetic' not in result.stdout and 'MEMORY-DAILY: OK' not in result.stdout
+        assert snapshot() == before
+        print('PASS: daily/catch-up stream to terminal and dated log, select model, print marker/path; source/installed status is read-only and never reuses stale summaries')
 
         # launchd has no nvm shell profile: discover only sandboxed Node/Pi copies.
         nvm = home / '.nvm'

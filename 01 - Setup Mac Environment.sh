@@ -197,7 +197,7 @@ AI_SKILLS_READY=false
 if bash scripts/install-ai-skills.sh; then
 	AI_SKILLS_READY=true
 else
-	echo "WARNING: AI-Skills bootstrap failed - check your GitHub SSH key/release and re-run (see RELEASES.md)." >&2
+	echo "WARNING: AI-Skills bootstrap failed - check your GitHub access/release and re-run (see RELEASES.md)." >&2
 fi
 
 # External skills referenced by Pi settings.json. Keep upstream-managed skills out of the
@@ -247,8 +247,9 @@ fi
 # Local hybrid search: pinned qmd, isolated dailydriver index and first embeddings.
 bash scripts/install-qmd.sh || echo "WARNING: qmd provisioning failed - see README 'Local search (qmd)'." >&2
 
-# Daily memory ritual: install the runner/agent only by default. Enabling requires
-# an explicit MEMORY_DAILY_ENABLE=1; existing enabled jobs are not silently disabled.
-bash scripts/install-memory-daily.sh || echo "WARNING: daily memory runner installation failed - see README 'Daily memory run'." >&2
+# DEC-0029: on-demand only. Ignore inherited enable flags and never load/reload
+# the template. A previously loaded job is left untouched with a prominent warning.
+bash scripts/install-memory-daily.sh --install-disabled || echo "WARNING: daily memory runner installation failed - see README 'Daily memory run'." >&2
 
 echo "Done. In Rider: set editor font to 'Monaspace Neon' (ligatures on) and terminal font to 'MonaspiceNe Nerd Font'."
+echo 'Memory is on-demand only: bash scripts/memory-run.sh daily (or catch-up / status). No schedule enabled by setup.'

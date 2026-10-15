@@ -40,7 +40,7 @@
       ],
       "_buildNote": "pnpm is pinned through npx so the build needs only node/npm, not a globally installed pnpm (Node 25+ no longer bundles corepack). Keep the version in step with packageManager in memory-mcp's package.json.",
       "entry": "dist/index.js",
-      "description": "Martin's second brain: three-tier markdown memory (core, archive, bank) over the local DailyDriver data repo, with a one-way publish path",
+      "description": "Martin's second brain: raw archive and bank, a compiled wiki, reviewed core, and local search via qmd over the DailyDriver data repo, with a one-way publish path",
       "hosts": [
         "pi"
       ],

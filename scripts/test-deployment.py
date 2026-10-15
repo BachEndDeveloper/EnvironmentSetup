@@ -32,6 +32,15 @@ def normalized(value):
     return os.path.realpath(os.path.join(home / ".pi/agent", os.path.expanduser(value)))
 if command == "git":
     if args[0] == "clone":
+        failure = os.environ.get("TEST_CLONE_ERROR")
+        ssh = args[1].startswith(("git@", "ssh://"))
+        if ssh and failure:
+            print(failure, file=sys.stderr)
+            sys.exit(128)
+        if args[1].startswith("https:") and os.environ.get("TEST_FAIL_HTTPS_CLONE"):
+            assert os.environ.get("GIT_TERMINAL_PROMPT") == "0"
+            print("fatal: Authentication failed for HTTPS", file=sys.stderr)
+            sys.exit(128)
         path = Path(args[-1]); (path / ".git").mkdir(parents=True)
         (path / ".branch").write_text("initial-clone")
         if "AI-Skills" in args[1]:
@@ -115,10 +124,10 @@ def main():
             executable = bin_dir / name
             executable.write_text(MOCK)
             executable.chmod(0o755)
-        env = dict(os.environ, HOME=str(home), PATH=f"{bin_dir}:/usr/bin:/bin:/opt/homebrew/bin", TEST_SKILLS_SOURCE=str(skills))
+        env = dict(os.environ, HOME=str(home), PATH=f"{bin_dir}:/usr/bin:/bin:/opt/homebrew/bin", TEST_SKILLS_SOURCE=str(skills), TMPDIR=str(root))
         # Do not inherit live config/credentials or deployment overrides.
         for key in list(env):
-            if key.startswith(("AI_SKILLS_", "M365_", "TEST_FAIL_", "TEST_NO_")) or key in ("CLAUDE_SKILLS_DIR", "M365_TOOLS_DIR", "PI_CODING_AGENT_DIR"):
+            if key.startswith(("AI_SKILLS_", "M365_", "TEST_FAIL_", "TEST_NO_", "TEST_CLONE_")) or key in ("CLAUDE_SKILLS_DIR", "M365_TOOLS_DIR", "PI_CODING_AGENT_DIR"):
                 del env[key]
 
         def run(script, *args, success=True, extra=None):
@@ -152,6 +161,38 @@ def main():
         assert "0 change(s)." in run(deploy)
         assert snapshot() == before
         print("PASS: install-ai-skills/install-local migrate relative and object packages, relink and repeat idempotently")
+
+        def clone_calls():
+            return [args for command, args in
+                    (json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines())
+                    if command == "git" and args[0] == "clone"]
+
+        assert clone_calls() == [["clone", "git@github.com:BachEndDeveloper/AI-Skills.git", str(deployed)]]
+        helper = setup / "scripts/git-clone-with-https-fallback.sh"
+        ssh_error = "git@github.com: Permission denied (publickey)."
+        for index, repo in enumerate(("git@github.com:fixture/sample.git", "ssh://git@github.com/fixture/sample.git")):
+            target = home / f"helper-fallback-{index}"
+            before_calls = len(clone_calls())
+            output = run(helper, repo, str(target), extra={"TEST_CLONE_ERROR": ssh_error})
+            assert "retrying the same repository over HTTPS" in output
+            assert clone_calls()[before_calls:] == [["clone", repo, str(target)],
+                                                    ["clone", "https://github.com/fixture/sample.git", str(target)]]
+        for index, error in enumerate(("Host key verification failed.", "Could not resolve hostname github.com", "Repository not found.")):
+            target = home / f"helper-no-retry-{index}"
+            before_calls = len(clone_calls())
+            run(helper, "git@github.com:fixture/sample.git", str(target), success=False,
+                extra={"TEST_CLONE_ERROR": error})
+            assert len(clone_calls()) == before_calls + 1 and not target.exists()
+        target = home / "helper-https-failure"
+        run(helper, "git@github.com:fixture/sample.git", str(target), success=False,
+            extra={"TEST_CLONE_ERROR": ssh_error, "TEST_FAIL_HTTPS_CLONE": "1"})
+        assert not target.exists()
+        # Non-GitHub remotes are never redirected to another host.
+        before_calls = len(clone_calls())
+        run(helper, "git@example.invalid:fixture/sample.git", str(home / "other-host"), success=False,
+            extra={"TEST_CLONE_ERROR": ssh_error})
+        assert len(clone_calls()) == before_calls + 1
+        print("PASS: SSH succeeds without HTTPS; both GitHub SSH forms retry auth failures only; host-key/DNS/missing-repo/other-host failures never downgrade; HTTPS failures propagate")
 
         # Default source is the deployment even when the script is invoked from development.
         before = snapshot()
@@ -195,6 +236,20 @@ def main():
         run(deploy)
         print("PASS: branch/dirty/source/no-tag/pin/failure guards; old-release migration fallback; no-release clone retry")
 
+        fallback_deploy = home / "https-skills"
+        before_calls = len(clone_calls())
+        output = run(deploy, extra={"AI_SKILLS_DIR": str(fallback_deploy), "TEST_CLONE_ERROR": ssh_error})
+        assert "latest -> v0.10.0" in output and (fallback_deploy / ".ref").read_text() == "v0.10.0"
+        assert clone_calls()[before_calls:] == [
+            ["clone", "git@github.com:BachEndDeveloper/AI-Skills.git", str(fallback_deploy)],
+            ["clone", "https://github.com/BachEndDeveloper/AI-Skills.git", str(fallback_deploy)]]
+        run(deploy)
+        failed_deploy = home / "failed-https-skills"
+        run(deploy, success=False, extra={"AI_SKILLS_DIR": str(failed_deploy),
+                                         "TEST_CLONE_ERROR": ssh_error, "TEST_FAIL_HTTPS_CLONE": "1"})
+        assert not failed_deploy.exists()
+        print("PASS: AI-Skills installer uses same-repo HTTPS fallback and release/deployment rules; failed HTTPS clone aborts safely")
+
         manifest_path = setup / "MCP/servers.json"
         manifest = json.loads(manifest_path.read_text())
         assert len(manifest["servers"]) == 6
@@ -215,7 +270,16 @@ def main():
         pi_path = home / ".pi/agent/mcp.json"
         local_before = json.loads(pi_path.read_text())["mcpServers"].copy()
         write(home / ".claude.json", {"projects": {"synthetic": "keep"}, "mcpServers": {"m365": {"command": "old"}}})
-        run(doctor)
+        before_calls = len(clone_calls())
+        run(doctor, extra={"TEST_CLONE_ERROR": ssh_error})
+        git_servers = [s for s in manifest["servers"] if s.get("type", "git") == "git"]
+        expected = []
+        for server in git_servers:
+            target = server["dir"].replace("$HOME", str(home))
+            expected += [["clone", server["repo"], target],
+                         ["clone", server["repo"].replace("git@github.com:", "https://github.com/"), target]]
+        assert clone_calls()[before_calls:] == expected
+        print("PASS: MCP installer retries each managed Git server over HTTPS after SSH authentication failure")
         before = snapshot()
         output = run(doctor)
         assert "already up to date" in output and snapshot() == before

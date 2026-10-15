@@ -243,24 +243,31 @@ from that file and drops anything added by hand. See
 ### Personal AI skills
 
 Personal skills live in the private [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills)
-repository rather than in this machine-setup repository. The macOS setup script always clones it to
-`~/source/AI-Skills` (or `AI_SKILLS_DIR`), checks out its newest release (`AI_SKILLS_REF="latest"`), and registers it as a
-local Pi package.
+repository, not in this machine-setup repository. Full macOS setup calls
+`scripts/install-ai-skills.sh`, which deploys a detached release copy at
+`~/.local/share/ai-skills` (or `AI_SKILLS_DIR`), registers it with Pi and relinks
+Claude Code skills. It never installs from the development checkout.
 
-The repository URL and the release rule are deliberately hardcoded near the Pi installation block
-in `01 - Setup Mac Environment.sh` — see `AI_SKILLS_REPO` and `AI_SKILLS_REF` there. `latest` follows
-the newest release tag, so shipping a skill change means releasing AI-Skills, not editing this
-repository; set `AI_SKILLS_REF` to an exact tag only to hold a machine back (see
-[`RELEASES.md`](RELEASES.md)). Update `AI_SKILLS_REPO` only when the repository moves. Because the
-repository is private, a new machine must have GitHub SSH access configured before this step runs;
-if it doesn't, the clone (or, on a re-run, the fetch) prints a `WARNING`, a second one covers the
-checkout and local install, the skills bootstrap is skipped, and the rest of the setup continues to
-completion.
+The repository URL and default release rule live in `scripts/install-ai-skills.sh`
+(`AI_SKILLS_REPO`, `AI_SKILLS_REF`). `latest` follows the newest stable release tag;
+set `AI_SKILLS_REF` to an exact tag only to hold a machine back (see
+[`RELEASES.md`](RELEASES.md)). Shipping a skill change means releasing AI-Skills,
+not editing this repository.
+
+AI-Skills and managed MCP clones try GitHub SSH first. On an **SSH authentication
+failure** (for example, no loaded key), the shared clone helper retries the same
+repository over HTTPS using existing Git credential helpers. No credentials are
+embedded; HTTPS terminal password prompts are disabled. Private repositories
+still require authorised access (configure GitHub HTTPS authentication beforehand
+if SSH is unavailable). Host-key, network and other failures do not trigger a
+fallback. Existing deployments keep their current origin for fetches; this is a
+clone fallback, not a remote migration. Failed access/release installation warns
+and skips the skills bootstrap during full setup.
 
 ## Local search (qmd)
 
 Use the **separate, standalone** installer; full macOS setup also calls it after
-MCP/AI-Skills and before the daily scheduler. It pins npm-global
+MCP/AI-Skills and before the on-demand memory runner/disabled scheduler template. It pins npm-global
 **`@tobilu/qmd@2.8.3`** and ensures Homebrew SQLite. Requirements: Node >=22, npm,
 Homebrew, Python 3 and macOS Ruby's standard-library YAML parser. Bun is not
 required by the npm distribution. Git/pgrep are used for rebuild safety checks.
@@ -317,69 +324,59 @@ python3 scripts/test-qmd-install.py
 
 ## Daily memory run
 
-The macOS setup installs a one-shot runner at `~/.local/share/memory-daily/run.sh` and a
-per-user LaunchAgent at `~/Library/LaunchAgents/local.<user>.memory-daily.plist`. The label is
-derived from `$USER` at install time; all paths come from `$HOME`. **Scheduling is off by
-default**, including at the next login (`Disabled=true`, `RunAtLoad=false`). Fresh/disabled
-installs only write files. Reinstallation preserves the prior explicit opt-in: changed files
-reload an enabled job (bootout/bootstrap); unchanged installs make no launchctl call. An
-already-enabled job is never silently disabled. Old Cowork tasks are not resumed or modified.
-
-The runner invokes `pi -p --no-session 'Run the memory-daily skill.'` using the current Pi
-registrations and deployed skill release. The skill performs the daily memory routine; its
-reviewed mutation restrictions and the MCP server gates still apply. No config is rewritten,
-login initiated or confirmation granted by the runner. Before running, it checks Pi on PATH,
-the presence/shape of `memory` and `m365-personal-productivity` registrations, and the private
-`~/source/DailyDriver` checkout. These are read-only prerequisites, **not auth/health checks**.
-Deploy a release containing `memory-daily`, validate its policy and authenticate Pi/M365
-interactively before opting in.
+**On demand only (DEC-0029); no scheduled automation until further notice.** Martin
+wants to watch the runs first. Run it yourself, or explicitly ask for a run:
 
 ```sh
-bash scripts/install-memory-daily.sh                  # install; preserve current opt-in/out
-bash scripts/install-memory-daily.sh --enable         # enable/load, but do not run immediately
-bash scripts/install-memory-daily.sh --status         # show whether the agent is loaded
-bash scripts/install-memory-daily.sh --disable        # unload and persist opt-out across logins
-bash "$HOME/.local/share/memory-daily/run.sh"          # run once; does not enable the agent
+bash scripts/memory-run.sh daily
+bash scripts/memory-run.sh catch-up
+bash scripts/memory-run.sh daily --model provider/id
+bash scripts/memory-run.sh status
 ```
 
-`MEMORY_DAILY_ENABLE=1` is also explicit opt-in (including when running full macOS setup).
-To select a model, use `MEMORY_DAILY_MODEL='provider/id:thinking' bash
-scripts/install-memory-daily.sh --enable`; this non-secret choice is written into the local
-plist. Pass it again when reinstalling to retain it; omitting it selects Pi's default. For a
-manual run, export `MEMORY_DAILY_MODEL` just for that invocation. Never put credentials in it.
-Changed files reload already-enabled jobs immediately; disabled jobs are only rewritten,
-never loaded. Repeated identical installs/enables do not restart the job. Each install ends
-with its resulting scheduling state. This summary uses installer-recorded opt-in; `--status`
-checks launchd's actual loaded state. Manage opt-in/out with these commands rather than manual
-launchctl changes.
+`daily` invokes `pi -p --no-session 'Run the memory-daily skill.'`; `catch-up` uses
+`run memory-daily catch-up`. Both stream to your terminal **and** the private
+Copenhagen-dated `~/Library/Logs/memory-daily/YYYY-MM-DD.log`, then print the final
+`MEMORY-DAILY` marker and log path. `--model` overrides `MEMORY_DAILY_MODEL` for the
+run; otherwise Pi's default applies. A nonzero exit, FAILED marker or missing/invalid
+terminal marker fails the wrapper; PARTIAL exits successfully but requires review.
+No log content is interpreted as instructions.
 
-The agent is scheduled daily at **07:30 in the Mac's system timezone**. Set the Mac timezone to
-Europe/Copenhagen for the intended wall-clock time: launchd's calendar schedule does not use
-the child's `TZ`. The runner always exports `TZ=Europe/Copenhagen`, includes `~/.local/bin`
-on PATH, and discovers nvm's default/newest installed Node version containing Pi without
-sourcing shell profiles. LaunchAgents run in the logged-in user's GUI session; a sleeping Mac
-can defer a calendar firing until wake, and multiple missed firings can coalesce. This is not
-an always-on service or a guaranteed catch-up ledger.
+`status` shows the latest log's latest-attempt summary and marker, launchd loaded
+state (`install-memory-daily.sh --status`), and the read-only qmd doctor
+(`install-qmd.sh --check`). It does not start Pi/MCP, refresh an index, create state
+or enable anything. Missing/truncated summaries are explicit; earlier successes
+are not substituted. A failed qmd check produces a nonzero status exit.
 
-Output is private per-user data in `~/Library/Logs/memory-daily/YYYY-MM-DD.log`, dated in
-Copenhagen, retained for 30 days by modification age. launchd also writes startup stdout/stderr
-to `launchd.stdout.log` / `launchd.stderr.log` there. Review logs locally; do not copy sensitive
-routine output into this public repository. A mkdir lock prevents scheduled/manual overlap.
-Abandoned locks are recoverable after 3 hours; a still-live owner is never displaced. There is
-no forced runtime timeout.
+The shared runner retains read-only preflight (Python/Pi, DailyDriver checkout,
+memory/M365 registration shape), nvm PATH discovery, Copenhagen TZ, private logs
+with 30-day retention, overlap/stale-lock protection and generic failure/partial
+notifications. Preflight is **not** an auth/health check. Authenticate interactively
+and review the deployed `memory-daily`/`second-brain` skills first. Runs can write
+memory within the skill and MCP gates; core remains reviewed. No confirmation,
+login or configuration change is granted by the runner. Keep logs out of this
+public repository.
 
-A nonzero exit, `MEMORY-DAILY: FAILED`, or missing/invalid final marker produces a `FAILED:`
-log line, a macOS failure notification with sound, and a nonzero runner exit. The expected
-final line is `MEMORY-DAILY: OK` or `MEMORY-DAILY: PARTIAL <n> step(s) skipped`; PARTIAL stays
-successful but sends a notification without sound. Notifications contain only a generic
-status/log pointer, never routine details. Notification permissions/session availability can
-prevent delivery; the log and exit status remain the fallback.
+Full macOS setup installs `~/.local/share/memory-daily/memory-run.sh` (same arguments),
+shared helpers and a disabled launchd template (`Disabled=true`, `RunAtLoad=false`).
+It calls `--install-disabled`, **ignores `MEMORY_DAILY_ENABLE` and prior opt-in for
+loading**, and never loads/reloads a schedule. A previously loaded job is left
+untouched with a prominent warning; explicitly disable it rather than leaving it
+running under the on-demand policy. Old Cowork tasks are not resumed or modified.
 
-**Hardening (future):** a restricted tool/MCP profile for scheduled runs could further reduce
-the available tool surface. This installer intentionally uses the existing registrations and
-does not introduce or approve a new profile/write policy.
+```sh
+bash scripts/install-memory-daily.sh --install-disabled  # install on-demand files
+bash scripts/install-memory-daily.sh --disable           # unload/persist opt-out
+bash scripts/memory-run.sh status
+```
 
-Sandbox regression gate (temporary HOME; mocked Pi/launchctl/osascript only):
+`install-memory-daily.sh --enable` remains available for **future automation, not
+now**. The standalone default installer preserves prior opt-in; use
+`--install-disabled` for today's policy. See [the future automation
+plan](docs/memory-automation.md) for readiness criteria, enable/disable controls,
+risks, launchd/timezone details, and staged collect → compile → weekly lint rollout.
+
+Sandbox regression gate (temporary HOME; mocked Pi/launchctl/qmd/osascript):
 
 ```sh
 python3 scripts/test-memory-daily.py

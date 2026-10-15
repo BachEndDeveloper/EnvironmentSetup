@@ -44,7 +44,7 @@ update mechanisms; this contract does not imply they have the same release-copy 
 needed for this npm distribution. Homebrew SQLite remains Homebrew-managed. Re-run the qmd
 installer after a deliberate pin change, then its read-only `--check`, and re-benchmark
 retrieval before accepting an upgrade. Full macOS setup now configures the `dailydriver`
-named index and embeds before installing the scheduler; the installer also works standalone.
+named index and embeds before installing the on-demand memory runner and disabled scheduler template; the installer also works standalone.
 DEC-0018 makes `$MEMORY_REPO/qmd/dailydriver.yml` canonical in private DailyDriver, with
 portable path tokens and explicit model pins; Martin reviews/commits it himself. Installation
 only proposes a missing config (uncommitted), then validates and renders the host copy.
@@ -97,13 +97,15 @@ bash scripts/install-ai-skills.sh      # advances release, reconciles both hosts
 git -C ~/.local/share/ai-skills describe --tags --exact-match HEAD
 ```
 
-Full macOS setup now installs the daily memory runner and a disabled per-user LaunchAgent.
-It does **not** load a new job unless `MEMORY_DAILY_ENABLE=1` is explicitly supplied, or the
-operator runs `bash scripts/install-memory-daily.sh --enable`. Reinstalls preserve prior opt-in:
-changed enabled jobs reload; disabled/unchanged installs make no launchctl call. Cowork tasks
-are not resumed. Deploy/review a release containing `memory-daily` and validate interactive auth before enabling;
-installing wrappers alone does not make unattended runs safe. See README's **Daily memory run**
-for disable/status, model selection, logs, schedule timezone and hardening notes.
+Full macOS setup installs the on-demand memory runner/status helpers and a disabled
+per-user LaunchAgent template with `install-memory-daily.sh --install-disabled`.
+It ignores inherited `MEMORY_DAILY_ENABLE=1` and prior opt-in for loading: **never
+loads/reloads** a job. A previously loaded job is left untouched with a prominent
+warning and disable command. Standalone default installation retains prior opt-in
+behaviour; `--enable` is available for **future automation, not now (DEC-0029)**.
+Cowork tasks are not resumed. See README's **Daily memory run** and
+[the automation plan](docs/memory-automation.md) for on-demand usage, readiness gates,
+status, disable, model selection, logging and future staged rollout.
 
 ## Sandbox gate (no live changes)
 
@@ -115,12 +117,14 @@ python3 scripts/test-qmd-install.py
 
 This uses a temporary HOME and mocked Git/npm/host CLIs to check latest/pinned releases,
 checkout-to-deployment migration, idempotent relinking/registration, guards, all six declarations,
-manual-reference preservation, remote registration and value-safe warnings. It never downloads,
+manual-reference preservation, remote registration, value-safe warnings, and SSH-auth-only
+same-repository HTTPS clone fallback (including both-installer coverage and failed-auth guards). It never downloads,
 authenticates, creates tags or starts MCP servers. Run `bash -n` and ShellCheck on changed shell
 scripts and `git diff --check` in both repositories as well. Live installer/health commands above
 are operator follow-ups, not sandbox gates. The daily-memory sandbox also uses temporary HOME
 and mocked Pi/launchctl/osascript to cover opt-in/out, idempotent installs, overlap/stale locks,
-read-only prerequisites, marker/exit failures, partial notifications and log retention. It never
+read-only prerequisites, marker/exit failures, partial notifications, log retention, on-demand
+daily/catch-up streaming and read-only status, plus full-setup never-load behaviour. It never
 loads a real launchd job or invokes a real agent. The qmd sandbox uses temporary HOME,
 real Ruby YAML/Node and mocked npm/qmd/brew/git/pgrep. It covers the exact pin, SQLite,
 missing-config proposals without Git mutation, authoritative private-config rendering with

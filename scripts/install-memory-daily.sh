@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Scheduling defaults off; preserve prior opt-in and reload only changed jobs.
+# On-demand setup never loads a job; standalone installs preserve prior opt-in.
 set -euo pipefail
 umask 077
 setup_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 mode=install
 [[ "${MEMORY_DAILY_ENABLE:-0}" != 1 ]] || mode=enable
 if [[ "$#" -gt 1 ]]; then
-	echo 'Usage: install-memory-daily.sh [--enable|--disable|--status]' >&2
+	echo 'Usage: install-memory-daily.sh [--enable|--disable|--status|--install-disabled]' >&2
 	exit 1
 fi
 case "${1:-}" in
@@ -14,9 +14,11 @@ case "${1:-}" in
 	--enable) mode=enable ;;
 	--disable) mode=disable ;;
 	--status) mode=status ;;
+	--install-disabled) mode=install-disabled ;;
 	--help|-h)
-		echo 'Usage: install-memory-daily.sh [--enable|--disable|--status]'
-		echo 'Default: preserve scheduling state (off for new installs). MEMORY_DAILY_ENABLE=1 enables it.'
+		echo 'Usage: install-memory-daily.sh [--enable|--disable|--status|--install-disabled]'
+		echo 'Default: preserve scheduling state (off for new installs). --install-disabled never loads a job.'
+		echo '--enable / MEMORY_DAILY_ENABLE=1: future automation only, not now (DEC-0029).'
 		exit 0 ;;
 	*) echo "ERROR: unknown option: $1" >&2; exit 1 ;;
 esac
@@ -42,7 +44,7 @@ if [[ "$mode" == status ]]; then
 	if launchctl print "$target" >/dev/null 2>&1; then
 		echo "$label: loaded (daily 07:30; RunAtLoad=false)."
 	else
-		echo "$label: unloaded. Enable with: bash scripts/install-memory-daily.sh --enable"
+		echo "$label: unloaded (on-demand only; DEC-0029). Future automation only: bash scripts/install-memory-daily.sh --enable"
 	fi
 	exit 0
 fi
@@ -53,16 +55,20 @@ if [[ "$mode" == disable ]]; then
 	# Persist the opt-out across logins; bootout alone would not do that.
 	launchctl disable "$target"
 	rm -f "$enabled_file"
-	echo 'memory-daily: installed, disabled (unloaded) -- enable with scripts/install-memory-daily.sh --enable'
+	echo 'memory-daily: installed, disabled (unloaded) -- future automation only: scripts/install-memory-daily.sh --enable'
 	exit 0
 fi
 
 mkdir -p "$state_dir" "$log_dir" "$(dirname "$plist")"
 changed=false
-if ! cmp -s "$setup_dir/scripts/memory-daily/run.sh" "$state_dir/run.sh"; then
-	install -m 700 "$setup_dir/scripts/memory-daily/run.sh" "$state_dir/run.sh"
-	changed=true
-fi
+# Status helpers are copied too, so the on-demand runner works without the checkout.
+for relative in memory-daily/run.sh memory-daily/common.sh memory-run.sh install-memory-daily.sh install-qmd.sh qmd-install.py; do
+	destination="$state_dir/${relative##*/}"
+	if ! cmp -s "$setup_dir/scripts/$relative" "$destination"; then
+		install -m 700 "$setup_dir/scripts/$relative" "$destination"
+		changed=true
+	fi
+done
 # Parse the template first, then replace values and serialize: HOME/model values
 # are escaped by plistlib, not interpolated into XML or AppleScript.
 if python3 - "$setup_dir/scripts/memory-daily/agent.plist" "$plist" "$label" <<'PY'
@@ -111,7 +117,14 @@ else
 	changed=true
 fi
 
-if [[ "$mode" == enable || -e "$enabled_file" ]]; then
+if [[ "$mode" == install-disabled ]]; then
+	echo "Installed $state_dir/memory-run.sh and disabled plist template $plist. No job loaded/reloaded."
+	if launchctl print "$target" >/dev/null 2>&1; then
+		echo 'WARNING: memory-daily is ENABLED (loaded) although setup is on-demand only (DEC-0029); disable with scripts/install-memory-daily.sh --disable' >&2
+	else
+		echo 'memory-daily: installed, disabled (on-demand only; DEC-0029)'
+	fi
+elif [[ "$mode" == enable || -e "$enabled_file" ]]; then
 	if $changed || [[ ! -e "$enabled_file" ]]; then
 		launchctl enable "$target"
 		if launchctl print "$target" >/dev/null 2>&1; then
@@ -125,6 +138,6 @@ else
 	echo "Installed $state_dir/run.sh and $plist. No launchctl call made."
 	echo 'To run once by hand (does not enable scheduling):'
 	# shellcheck disable=SC2016 # Print the command for the operator's shell.
-	echo '  bash "$HOME/.local/share/memory-daily/run.sh"'
-	echo 'memory-daily: installed, disabled -- enable with scripts/install-memory-daily.sh --enable'
+	echo '  bash "$HOME/.local/share/memory-daily/memory-run.sh" daily'
+	echo 'memory-daily: installed, disabled -- future automation only: scripts/install-memory-daily.sh --enable'
 fi

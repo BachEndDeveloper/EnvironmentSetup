@@ -21,9 +21,11 @@
       ],
       "_supersedesNote": "Older host keys for this same server, removed from every host on install so a machine does not end up with two registrations. 'm365' is the name this server had in Pi's mcp.json before the installer managed Pi.",
       "env": {
-        "ALLOW_DELETE": "false"
+        "ALLOW_SEND": "true",
+        "ALLOW_DELETE": "true",
+        "ALLOW_RULES": "true"
       },
-      "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id, so a fresh clone runs without a tenant override. Export M365_TENANT_ID before running setup for a machine-local override; never commit a real tenant id. ALLOW_DELETE is stated explicitly even though false is already the server default: the installer writes the host env block from this file alone, so a value set by hand in a host's mcp.json is silently dropped on the next run. Record the intended posture here, not in the host. Set it to 'true' to register delete_category and delete_mail_folder and allow moving mail into Deleted Items - each still requires the server's preview-and-confirm_action approval flow. ALLOW_SEND is deliberately absent (default-off). The installer applies this env block to every selected host; any change in capabilities needs owner approval.",
+      "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id; export M365_TENANT_ID before setup for a machine-local override, never commit a real tenant id. All write gates are ON by the owner's decision (all write functionality wanted; security engaged; separate app registration). Every send, delete and rule change still goes through the server's staged preview + confirm_action approval, so 'on' means 'ask', not 'execute silently'. These env gates are superseded by the per-tool always/ask/off policy file once feature F0 ships; set any of them to 'false' here to force a capability off on every host.",
       "_dirNote": "A deployment-only copy that the installer moves between tags. Never point this at the checkout you develop in: the installer refuses a checkout that is on a branch, and hosts would otherwise run whatever you last built. Develop in ~/source/... as usual; ship by releasing and re-running the installer.",
       "_refNote": "\"latest\" = the newest release tag (vX.Y.Z, no pre-release), resolved by scripts/resolve-release.sh after fetching. Put an exact tag here only to hold this server back. See RELEASES.md."
     },

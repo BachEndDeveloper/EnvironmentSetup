@@ -44,7 +44,7 @@ if [[ "$mode" == status ]]; then
 	if launchctl print "$target" >/dev/null 2>&1; then
 		echo "$label: loaded (daily 07:30; RunAtLoad=false)."
 	else
-		echo "$label: unloaded. Enable with: bash scripts/install-memory-daily.sh --enable"
+		echo "$label: unloaded (on-demand only; DEC-0029). Future automation only: bash scripts/install-memory-daily.sh --enable"
 	fi
 	exit 0
 fi
@@ -55,7 +55,7 @@ if [[ "$mode" == disable ]]; then
 	# Persist the opt-out across logins; bootout alone would not do that.
 	launchctl disable "$target"
 	rm -f "$enabled_file"
-	echo 'memory-daily: installed, disabled (unloaded) -- enable with scripts/install-memory-daily.sh --enable'
+	echo 'memory-daily: installed, disabled (unloaded) -- future automation only: scripts/install-memory-daily.sh --enable'
 	exit 0
 fi
 
@@ -139,5 +139,5 @@ else
 	echo 'To run once by hand (does not enable scheduling):'
 	# shellcheck disable=SC2016 # Print the command for the operator's shell.
 	echo '  bash "$HOME/.local/share/memory-daily/memory-run.sh" daily'
-	echo 'memory-daily: installed, disabled -- enable with scripts/install-memory-daily.sh --enable'
+	echo 'memory-daily: installed, disabled -- future automation only: scripts/install-memory-daily.sh --enable'
 fi

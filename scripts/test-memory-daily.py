@@ -7,6 +7,7 @@ Never loads a real launchd job, invokes real Pi, or accesses the real HOME.
 import json
 import os
 import plistlib
+import select
 import shutil
 import subprocess
 import sys
@@ -53,6 +54,7 @@ elif command == 'pi':
     assert args[:2] == ['-p', '--no-session']
     assert args[-1] in ('Run the memory-daily skill.', 'run memory-daily catch-up')
     if os.environ.get('MOCK_PI_WAIT'):
+        print('Synthetic streaming start.', flush=True)
         (root / 'pi-ready').write_text('ready')
         deadline = time.monotonic() + 15
         while not (root / 'pi-release').exists():
@@ -75,6 +77,9 @@ else:
 
 def main():
     source = Path(__file__).resolve().parent.parent
+    full_setup = (source / '01 - Setup Mac Environment.sh').read_text()
+    assert 'bash scripts/install-memory-daily.sh --install-disabled' in full_setup
+    assert 'Memory is on-demand only: bash scripts/memory-run.sh daily' in full_setup
     with tempfile.TemporaryDirectory(prefix='memory-daily-test-') as temporary:
         root = Path(temporary).resolve()
         # Spaces and XML metacharacters prove the plist is rendered, not interpolated.
@@ -146,7 +151,7 @@ def main():
         (root / 'calls.jsonl').unlink()
 
         output = run(installer).stdout
-        assert output.splitlines()[-1] == 'memory-daily: installed, disabled -- enable with scripts/install-memory-daily.sh --enable'
+        assert output.splitlines()[-1] == 'memory-daily: installed, disabled -- future automation only: scripts/install-memory-daily.sh --enable'
         assert '--enable' in output and calls('launchctl') == []
         config = plistlib.loads(plist.read_bytes())
         assert config['Label'] == 'local.sandbox-user.memory-daily'
@@ -296,6 +301,44 @@ def main():
         assert snapshot() == before
         print('PASS: daily/catch-up stream to terminal and dated log, select model, print marker/path; source/installed status is read-only and never reuses stale summaries')
 
+        # Observe a line before Pi is released: capture-at-exit is not streaming.
+        process = subprocess.Popen(['bash', str(on_demand), 'daily'],
+                                   env=env | {'MOCK_PI_WAIT': '1'}, cwd=setup,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        received = b''
+        try:
+            deadline = time.monotonic() + 10
+            while b'Synthetic streaming start.' not in received:
+                assert time.monotonic() < deadline, 'on-demand output was not streamed'
+                ready, _, _ = select.select([process.stdout], [], [], 0.1)
+                if ready:
+                    chunk = os.read(process.stdout.fileno(), 4096)
+                    assert chunk, 'runner exited before streaming'
+                    received += chunk
+            assert process.poll() is None
+            assert 'Synthetic streaming start.' in log()
+        finally:
+            (root / 'pi-release').write_text('release')
+            tail, _ = process.communicate(timeout=20)
+            assert process.returncode == 0
+            assert b'Final marker: MEMORY-DAILY: OK' in received + tail
+            (root / 'pi-release').unlink()
+            (root / 'pi-ready').unlink()
+        print('PASS: on-demand output reaches both terminal and log while Pi is still running, not only at exit')
+
+        # A log-open failure must stop before Pi, not disappear inside tee.
+        saved_log = root / 'saved.log'
+        dated_log.rename(saved_log)
+        dated_log.mkdir()
+        pi_before = len(calls('pi'))
+        try:
+            run(on_demand, 'daily', success=False)
+            assert len(calls('pi')) == pi_before and not lock.exists()
+        finally:
+            dated_log.rmdir()
+            saved_log.rename(dated_log)
+        print('PASS: inability to open the dated log fails synchronously before Pi')
+
         # launchd has no nvm shell profile: discover only sandboxed Node/Pi copies.
         nvm = home / '.nvm'
         for version in ('v20.1.0', 'v30.2.0'):
@@ -412,8 +455,9 @@ def main():
             while not (root / 'pi-ready').exists():
                 assert time.monotonic() < deadline, 'mock Pi did not start'
                 time.sleep(0.02)
-            # A manual invocation also skips while the first is still running.
-            run(runner)
+            # The on-demand entry point shares the scheduled runner's lock.
+            result = run(on_demand, 'daily')
+            assert 'SKIPPED: another run owns the lock' in result.stdout
             assert len(calls('pi')) == pi_before + 1 and lock.exists()
             # Do not release the winner until the competing invocation has skipped.
             while first.poll() is None and second.poll() is None:

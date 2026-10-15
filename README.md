@@ -257,6 +257,64 @@ if it doesn't, the clone (or, on a re-run, the fetch) prints a `WARNING`, a seco
 checkout and local install, the skills bootstrap is skipped, and the rest of the setup continues to
 completion.
 
+## Local search (qmd)
+
+Use the **separate, standalone** installer; full macOS setup also calls it after
+MCP/AI-Skills and before the daily scheduler. It pins npm-global
+**`@tobilu/qmd@2.8.3`** and ensures Homebrew SQLite. Requirements: Node >=22, npm,
+Homebrew, Python 3 and macOS Ruby's standard-library YAML parser. Bun is not
+required by the npm distribution. Git/pgrep are used for rebuild safety checks.
+
+```sh
+bash scripts/install-qmd.sh              # validate/copy config, install, update, embed
+bash scripts/install-qmd.sh --no-embed   # configure/update, defer embeddings/models
+bash scripts/install-qmd.sh --rebuild    # fresh named index; retain model cache
+bash scripts/install-qmd.sh --check      # read-only doctor; no repair or proposal
+```
+
+**Canonical config:** `$MEMORY_REPO/qmd/dailydriver.yml` belongs in private
+DailyDriver, reviewed and committed **by Martin**, never in this public repository.
+If absent, installation writes an **uncommitted proposal** with four generic
+collections/contexts and explicit upstream model pins, then prints the manual
+review/commit command. It never runs Git add/commit/push or changes memory files.
+Existing canonical config is authoritative: no ad hoc collection/context changes.
+
+Portable canonical paths use literal `$MEMORY_REPO/memory/...` tokens for `wiki`,
+`archive/decisions`, `archive/sources` and `bank`, each with `**/*.md`. The installer
+validates before installing, renders only those paths into
+`~/.config/qmd/dailydriver.yml`, and validates resolved roots again. All other
+bytes are preserved. Quarantine, core, other roots and any `update:` key are
+refused. Repository resolution is `MEMORY_REPO` → `memoryRepo` in
+`~/.config/memory-mcp/config.json` → `$HOME/source/DailyDriver`.
+
+The disposable index lives at `~/.cache/qmd/dailydriver.sqlite`; models download
+on first use to `~/.cache/qmd/models/`. **Never copy or commit either.** Rebuild on
+a new machine by cloning DailyDriver and running the installer, not by migrating
+cache files. `--rebuild` discards only this named index/sidecars, refuses running
+qmd, an active WAL or a held memory writer lock, then updates/embeds. Existing
+indexes with changed names/roots/masks/ignore globs **require `--rebuild`**: qmd
+otherwise retains orphan rows from removed collections/paths. Labels alone need
+no rebuild. **Go-live needs `--rebuild`** because the benchmark used a lane-worktree
+root and extra ignore globs. Rebuild time is **not yet measured
+(hardware-dependent)**; allow additional time for cold model downloads (roughly
+2 GB for all models).
+
+`--check` verifies the pin, canonical/rendered-copy consistency, installed-YAML
+topology and last embedded-chunk age without writing; it prints `topology: matches`
+or `topology: differs (rebuild required)`. `mcp-node`
+adds local launchers and the selected Node bin to GUI-host PATH; the qmd installer
+supplies a local launcher for custom npm prefixes. No `MEMORY_QMD_BIN` entry in
+`MCP/servers.json` is needed, and qmd's own MCP server/skill is not registered.
+Agents use `memory_search`; memory-mcp owns retrieval policy and BM25 fallback.
+
+See [the qmd ADR/runbook](docs/qmd.md) for exact model pins, private-config
+ownership, rebuild guards, upgrade procedure, doctor caveats and GUI discovery.
+Sandbox gate (temporary HOME; real YAML/Node; mocked installers/Git/process check):
+
+```sh
+python3 scripts/test-qmd-install.py
+```
+
 ## Daily memory run
 
 The macOS setup installs a one-shot runner at `~/.local/share/memory-daily/run.sh` and a

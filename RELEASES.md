@@ -38,6 +38,24 @@ repo. The six-server inventory and read-only prerequisite check are in `MCP/READ
 Upstream dotnet/Aspire skills, runtimes and third-party Pi packages retain their existing upstream
 update mechanisms; this contract does not imply they have the same release-copy isolation.
 
+**Local search exception (explicit npm pin):** qmd is installed globally as
+`@tobilu/qmd@2.8.3`, with the single installer version variable in
+`scripts/install-qmd.sh`; it does not follow npm latest. Node >=22 is required; Bun is not
+needed for this npm distribution. Homebrew SQLite remains Homebrew-managed. Re-run the qmd
+installer after a deliberate pin change, then its read-only `--check`, and re-benchmark
+retrieval before accepting an upgrade. Full macOS setup now configures the `dailydriver`
+named index and embeds before installing the scheduler; the installer also works standalone.
+DEC-0018 makes `$MEMORY_REPO/qmd/dailydriver.yml` canonical in private DailyDriver, with
+portable path tokens and explicit model pins; Martin reviews/commits it himself. Installation
+only proposes a missing config (uncommitted), then validates and renders the host copy.
+It never stages/commits/pushes, mutates collections ad hoc or copies index/model caches.
+See [docs/qmd.md](docs/qmd.md) for config ownership, `--rebuild`, `--check`, first-use
+downloads, upgrade/re-benchmark steps and GUI PATH discovery. Changed collection names,
+roots, masks or ignore globs require a guarded `--rebuild` because qmd retains orphan rows;
+labels-only changes do not. The go-live install requires `--rebuild` to replace the benchmark
+lane-worktree/ignore topology. Rebuild time is not yet measured (hardware-dependent); the
+runbook has the measurement line for the benchmark result.
+
 ## The release contract (every released repository)
 
 1. **Tag from `main`, annotated, `vX.Y.Z`** (`git tag -a`). The version in the package manifest
@@ -92,6 +110,7 @@ for disable/status, model selection, logs, schedule timezone and hardening notes
 ```sh
 python3 scripts/test-deployment.py /path/to/AI-Skills
 python3 scripts/test-memory-daily.py
+python3 scripts/test-qmd-install.py
 ```
 
 This uses a temporary HOME and mocked Git/npm/host CLIs to check latest/pinned releases,
@@ -102,7 +121,14 @@ scripts and `git diff --check` in both repositories as well. Live installer/heal
 are operator follow-ups, not sandbox gates. The daily-memory sandbox also uses temporary HOME
 and mocked Pi/launchctl/osascript to cover opt-in/out, idempotent installs, overlap/stale locks,
 read-only prerequisites, marker/exit failures, partial notifications and log retention. It never
-loads a real launchd job or invokes a real agent.
+loads a real launchd job or invokes a real agent. The qmd sandbox uses temporary HOME,
+real Ruby YAML/Node and mocked npm/qmd/brew/git/pgrep. It covers the exact pin, SQLite,
+missing-config proposals without Git mutation, authoritative private-config rendering with
+byte preservation, canonical/rendered safety checks before installation, read-only doctor,
+installed-YAML topology-change refusal (including masks/paths/names/ignores) and labels-only
+updates, idempotence, rebuild deletion scope and process/WAL/writer-lock guards, deferred embedding,
+failure handling, settings precedence and GUI PATH discovery. It never installs real
+packages, downloads models or stages/commits/pushes a repository.
 
 ## Holding a machine back
 

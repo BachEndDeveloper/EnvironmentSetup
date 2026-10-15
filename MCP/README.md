@@ -72,7 +72,10 @@ A fresh machine is not a complete authenticated replica until these manual steps
    Desktop's configuration-only file is merged with a backup. `supersedes` removes older keys for
    managed servers in each selected host. Machine-local entries are not mutated.
 2. **Never store a versioned Node path in host config.** `mcp-node` follows nvm's `default` alias,
-   then the newest installed version, then `PATH`, avoiding stale `ENOENT` errors.
+   then the newest installed version, then `PATH`, avoiding stale `ENOENT` errors. It adds
+   `~/.local/bin` and that Node's bin directory to child `PATH` so memory-mcp can find qmd even
+   from GUI hosts. The qmd installer supplies a stable local launcher for custom npm prefixes;
+   no `MEMORY_QMD_BIN` manifest entry is required (see root README's **Local search (qmd)**).
 3. **Never run a host from a development checkout.** `dir` is deployment-only, detached at a
    release, normally under `~/.local/share/mcp`. A branched checkout or non-Git directory is refused.
    Develop in `~/source/<repo>`, release, then re-run the installer. AI-Skills follows the same

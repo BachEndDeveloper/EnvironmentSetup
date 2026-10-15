@@ -9,7 +9,11 @@ if [ -r "$ALIAS_FILE" ]; then
   [ -x "$NVM_DIR/versions/node/$V/bin/node" ] && NODE_BIN="$NVM_DIR/versions/node/$V/bin/node"
 fi
 if [ -z "$NODE_BIN" ]; then
+  # shellcheck disable=SC2012 # nvm controls these version-directory names.
   NODE_BIN="$(ls -d "$NVM_DIR"/versions/node/v* 2>/dev/null | sort -V | tail -1)/bin/node"
 fi
 [ -x "$NODE_BIN" ] || NODE_BIN="$(command -v node)"
+# GUI hosts start with a minimal PATH. Child tools (notably qmd) need the
+# selected Node/npm global bin and our stable local launchers, not shell startup.
+export PATH="$HOME/.local/bin:${NODE_BIN%/*}:$PATH"
 exec "$NODE_BIN" "$@"

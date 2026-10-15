@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Sandbox qmd installation with mocked npm/qmd/brew and temporary HOME.
+"""DEC-0018 qmd sandbox: temporary HOME, real YAML/Node, mocked npm/qmd/brew/git/pgrep.
 
-Uses real Node for the installer's YAML-reader/launcher code. Mock qmd emits the
-JSON subset of YAML; mock npm supplies a JSON-only stand-in for its YAML parser.
-No package installs, downloads, real indexes, host configuration or model calls.
+Never installs packages, downloads models, commits data or accesses live host state.
 """
 import json
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -15,7 +14,7 @@ from pathlib import Path
 
 MOCK = r'''#!/usr/bin/env python3
 import datetime as dt
-import json, os, sys, sqlite3
+import json, os, sys, sqlite3, subprocess
 from pathlib import Path
 root = Path(os.environ['SANDBOX_ROOT'])
 home = Path(os.environ['HOME'])
@@ -28,23 +27,6 @@ prefix = home / 'npm prefix'
 package = prefix / 'lib/node_modules/@tobilu/qmd'
 config = home / '.config/qmd/dailydriver.yml'
 database = home / '.cache/qmd/dailydriver.sqlite'
-def read_config():
-    return json.loads(config.read_text()) if config.exists() else {'collections': {}}
-def save_config(data):
-    config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text(json.dumps(data, indent=2) + '\n')
-def sync(data, embed=False):
-    database.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(database) as db:
-        db.execute('CREATE TABLE IF NOT EXISTS store_collections (name TEXT, path TEXT, pattern TEXT)')
-        db.execute('CREATE TABLE IF NOT EXISTS content_vectors (embedded_at TEXT)')
-        db.execute('DELETE FROM store_collections')
-        db.executemany('INSERT INTO store_collections VALUES (?, ?, ?)',
-                       [(n, c['path'], c['pattern']) for n, c in data['collections'].items()])
-        if embed:
-            db.execute('DELETE FROM content_vectors')
-            db.execute('INSERT INTO content_vectors VALUES (?)',
-                       [(dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)).isoformat()])
 if name == 'npm':
     if args == ['prefix', '-g']: print(prefix)
     elif args == ['root', '-g']: print(prefix / 'lib/node_modules')
@@ -52,9 +34,6 @@ if name == 'npm':
         assert len(args) == 3 and args[2].startswith('@tobilu/qmd@')
         package.mkdir(parents=True, exist_ok=True)
         (package / 'package.json').write_text(json.dumps({'version': args[2].split('@')[-1]}))
-        parser = package / 'node_modules/yaml'
-        parser.mkdir(parents=True, exist_ok=True)
-        (parser / 'index.js').write_text('module.exports = {parse: JSON.parse};\n')
         binary = prefix / 'bin/qmd'
         binary.parent.mkdir(parents=True, exist_ok=True)
         binary.write_text('#!/usr/bin/env node\n' +
@@ -70,43 +49,54 @@ elif name == 'brew':
         else: sys.exit(1)
     elif args == ['install', 'sqlite']: state.write_text('installed')
     else: raise AssertionError('unmocked brew call')
+elif name == 'git':
+    assert args[:1] == ['-C'] and args[2:] == ['rev-parse', '--git-common-dir'], args
+    assert (Path(args[1]) / '.git').is_dir()
+    print('.git')
+elif name == 'pgrep':
+    assert args[:1] == ['-f']
+    sys.exit(0 if os.environ.get('MOCK_QMD_RUNNING') else 1)
 elif name == 'qmd':
     if args == ['--version']:
         print('qmd ' + os.environ.get('MOCK_QMD_VERSION', json.loads((package / 'package.json').read_text())['version']))
         sys.exit(0)
     assert args[:2] == ['--index', 'dailydriver'], args
-    args = args[2:]
-    data = read_config()
+    operation = args[2:]
+    assert operation in (['update'], ['embed']), 'canonical config must not use ad hoc collection/context commands'
+    data = json.loads(subprocess.check_output(['ruby', '-r', 'yaml', '-r', 'json', '-e',
+        'puts JSON.generate(YAML.safe_load(STDIN.read, aliases: false))'], input=config.read_bytes()))
     collections = data['collections']
-    if args[:2] == ['collection', 'add']:
-        path = args[2]; n = args[args.index('--name') + 1]
-        assert args[-2:] == ['--mask', '**/*.md']
-        assert n not in collections
-        assert not any(c['path'] == path and c['pattern'] == '**/*.md' for c in collections.values())
-        assert '/memory/quarantine' not in str(Path(path).resolve())
-        assert '/memory/core' not in str(Path(path).resolve())
-        collections[n] = {'path': path, 'pattern': '**/*.md'}
-    elif args[:2] == ['collection', 'remove']:
-        del collections[args[2]]
-    elif args[:2] == ['context', 'add']:
-        n = args[2].removeprefix('qmd://')
-        collections[n].setdefault('context', {})[''] = args[3]
-    elif args == ['update']:
-        assert all('/memory/quarantine' not in c['path'] and '/memory/core' not in c['path']
-                   for c in collections.values())
-    elif args == ['embed']:
-        if os.environ.get('MOCK_EMBED_FAIL'): sys.exit(2)
-    else: raise AssertionError('unmocked qmd command: ' + repr(args))
-    save_config(data)
-    sync(data, embed=args == ['embed'])
+    assert set(collections) == {'wiki', 'decisions', 'sources', 'bank'}
+    assert all(Path(c['path']).is_absolute() and c['pattern'] == '**/*.md' for c in collections.values())
+    if operation == ['embed'] and os.environ.get('MOCK_EMBED_FAIL'): sys.exit(2)
+    if operation == ['update'] and os.environ.get('EXPECT_REBUILD'):
+        assert not database.exists()
+        assert not Path(str(database) + '-wal').exists()
+        assert not Path(str(database) + '-shm').exists()
+    database.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(database) as db:
+        db.execute('CREATE TABLE IF NOT EXISTS store_collections (name TEXT, path TEXT, pattern TEXT)')
+        db.execute('CREATE TABLE IF NOT EXISTS content_vectors (embedded_at TEXT)')
+        db.execute('DELETE FROM store_collections')
+        db.executemany('INSERT INTO store_collections VALUES (?, ?, ?)',
+                       [(n, c['path'], c['pattern']) for n, c in collections.items()])
+        if operation == ['embed']:
+            db.execute('DELETE FROM content_vectors')
+            db.execute('INSERT INTO content_vectors VALUES (?)',
+                       [(dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)).isoformat()])
 else: raise AssertionError('unmocked command: ' + name)
 '''
+
+
+def yaml_data(text):
+    return json.loads(subprocess.check_output(['ruby', '-r', 'yaml', '-r', 'json', '-e',
+                      'puts JSON.generate(YAML.safe_load(STDIN.read, aliases: false))'], input=text.encode('utf-8')))
 
 
 def main():
     source = Path(__file__).resolve().parent.parent
     node = shutil.which('node')
-    assert node, 'Node >=22 is needed for the sandbox gate'
+    assert node and shutil.which('ruby'), 'Node >=22 and macOS Ruby/YAML are needed for the sandbox'
     installer = source / 'scripts/install-qmd.sh'
     with tempfile.TemporaryDirectory(prefix='qmd-install-test-') as temporary:
         root = Path(temporary).resolve()
@@ -116,9 +106,9 @@ def main():
         bin_dir.mkdir()
         mock = root / 'mock.py'
         mock.write_text(MOCK)
-        for name in ('npm', 'brew'):
+        for name in ('npm', 'brew', 'git', 'pgrep'):
             path = bin_dir / name
-            path.write_text(f'#!/bin/sh\nexec {shlex_quote(sys.executable)} {shlex_quote(str(mock))} {name} "$@"\n')
+            path.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(mock))} {name} "$@"\n')
             path.chmod(0o755)
         (bin_dir / 'node').symlink_to(node)
         env = {'HOME': str(home), 'SANDBOX_ROOT': str(root),
@@ -130,15 +120,18 @@ def main():
             for relative in ('wiki', 'archive/decisions', 'archive/sources', 'bank', 'quarantine', 'core'):
                 (path / 'memory' / relative).mkdir(parents=True)
             (path / 'memory/wiki/example.md').write_text('# Synthetic page\n')
+            (path / '.git').mkdir()
+            (path / '.git/HEAD').write_text('ref: refs/heads/synthetic\n')
 
         make_repo(repo)
+        canonical = repo / 'qmd/dailydriver.yml'
         config = home / '.config/qmd/dailydriver.yml'
         database = home / '.cache/qmd/dailydriver.sqlite'
         manifest = home / 'npm prefix/lib/node_modules/@tobilu/qmd/package.json'
 
         def run(*args, success=True, extra=None):
             result = subprocess.run(['bash', str(installer), *args], env=env | (extra or {}),
-                                    cwd=source, capture_output=True, text=True, timeout=30)
+                                    cwd=root, capture_output=True, text=True, timeout=30)
             assert (result.returncode == 0) == success, result.stdout + result.stderr
             return result
 
@@ -151,71 +144,144 @@ def main():
             return {str(p.relative_to(home)): (p.read_bytes(), p.stat().st_mtime_ns)
                     for p in home.rglob('*') if p.is_file()}
 
-        def read_config():
-            return json.loads(config.read_text())
-
-        def write_config(data):
-            config.write_text(json.dumps(data))
-
         before = snapshot()
-        output = run('--check', success=False)
-        assert snapshot() == before
-        assert 'named index does not exist' in output.stderr and 'check FAILED' in output.stdout
-        assert calls('brew') == [] and not any(a[:2] == ['install', '-g'] for a in calls('npm'))
-        print('PASS: --check on a fresh HOME is read-only and reports missing version/index')
+        run('--check', success=False)
+        assert snapshot() == before and calls() == [] and not canonical.exists()
+        print('PASS: fresh --check is read-only and does not propose a missing canonical config')
 
-        memory_before = {str(p): p.read_bytes() for p in repo.rglob('*') if p.is_file()}
+        git_before = {str(p): p.read_bytes() for p in (repo / '.git').rglob('*') if p.is_file()}
+        memory_before = {str(p): p.read_bytes() for p in (repo / 'memory').rglob('*') if p.is_file()}
         output = run()
         assert output.stdout.splitlines()[-1].endswith('collections=4; embed=complete)')
-        data = read_config()['collections']
-        assert set(data) == {'wiki', 'decisions', 'sources', 'bank'}
+        assert 'Review and commit it yourself: cd $MEMORY_REPO && git add qmd/ && git commit -m "qmd: index config"' in output.stdout
+        text = canonical.read_bytes().decode('utf-8')
+        defaults = yaml_data(text)
+        assert set(defaults['collections']) == {'wiki', 'decisions', 'sources', 'bank'}
         labels = {
             'wiki': 'Compiled pages; every statement cited; inbound attributed',
             'decisions': "Martin's decisions, his own words (authored)",
             'sources': 'Imported raw sources; corpus tells authorship (sessions/mail/teams/tasks = Martin; docs = the document; projects = the artifact)',
             'bank': "Claims by others, attributed; **never Martin's view**",
         }
-        for name, relative in [('wiki', 'wiki'), ('decisions', 'archive/decisions'),
-                               ('sources', 'archive/sources'), ('bank', 'bank')]:
-            assert data[name] == {'path': str(repo / 'memory' / relative), 'pattern': '**/*.md',
-                                  'context': {'': labels[name]}}
+        relative_roots = {'wiki': 'memory/wiki', 'decisions': 'memory/archive/decisions',
+                          'sources': 'memory/archive/sources', 'bank': 'memory/bank'}
+        for name, relative in relative_roots.items():
+            assert defaults['collections'][name] == {'path': '$MEMORY_REPO/' + relative, 'pattern': '**/*.md',
+                                                    'context': {'': labels[name]}}
+        assert defaults['models'] == {
+            'embed': 'hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf',
+            'rerank': 'hf:ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF/qwen3-reranker-0.6b-q8_0.gguf',
+            'generate': 'hf:tobil/qmd-query-expansion-1.7B-gguf/qmd-query-expansion-1.7B-q4_k_m.gguf',
+        }
+        assert calls('git') == []
+        assert {str(p): p.read_bytes() for p in (repo / '.git').rglob('*') if p.is_file()} == git_before
+        assert {str(p): p.read_bytes() for p in (repo / 'memory').rglob('*') if p.is_file()} == memory_before
         assert calls('brew') == [['list', '--versions', 'sqlite'], ['install', 'sqlite']]
         assert ['install', '-g', '@tobilu/qmd@2.8.3'] in calls('npm')
-        qmd_calls = calls('qmd')
-        assert sum(a[2:4] == ['collection', 'add'] for a in qmd_calls) == 4
-        assert sum(a[2:4] == ['context', 'add'] for a in qmd_calls) == 4
-        assert qmd_calls[-2:] == [['--index', 'dailydriver', 'update'], ['--index', 'dailydriver', 'embed']]
-        assert {str(p): p.read_bytes() for p in repo.rglob('*') if p.is_file()} == memory_before
-        print('PASS: fresh install uses the exact npm pin, installs SQLite, creates four collections/labels and updates/embeds')
+        assert calls('qmd') == [['--version'], ['--index', 'dailydriver', 'update'], ['--index', 'dailydriver', 'embed']]
+        print('PASS: absent config proposes four portable roots/contexts and pinned models, installs the pin, updates/embeds, never stages or commits')
 
-        config_before = config.read_bytes()
-        launcher_before = (home / '.local/bin/qmd').stat().st_mtime_ns
+        # Existing private formatting/context is authoritative, not replaced by defaults.
+        text = ('# Preserve this comment: $MEMORY_REPO/memory/wiki\n' + text).replace(
+            '    path: "$MEMORY_REPO/memory/wiki"', "    path: '$MEMORY_REPO/memory/wiki' # keep this comment")
+        text = text.replace(json.dumps(labels['wiki']), json.dumps('Synthetic routing — $MEMORY_REPO/memory/wiki', ensure_ascii=False))
+        text = text.replace('\n', '\r\n')
+        canonical.write_bytes(text.encode('utf-8'))
+        canonical_before = (canonical.read_bytes(), canonical.stat().st_mtime_ns)
         count = len(calls('qmd'))
-        npm_installs = calls('npm').count(['install', '-g', '@tobilu/qmd@2.8.3'])
         run()
-        assert config.read_bytes() == config_before
-        assert calls('qmd')[count:] == [['--version'], ['--index', 'dailydriver', 'update'],
-                                             ['--index', 'dailydriver', 'embed']]
-        assert calls('npm').count(['install', '-g', '@tobilu/qmd@2.8.3']) == npm_installs
-        assert (home / '.local/bin/qmd').stat().st_mtime_ns == launcher_before
-        print('PASS: repeat install keeps matching collections/contexts and does not reinstall or rewrite the launcher')
+        rendered = text
+        for name, relative in relative_roots.items():
+            token = '$MEMORY_REPO/' + relative
+            if name == 'wiki':
+                rendered = rendered.replace("path: '" + token + "'", "path: '" + str(repo / relative).replace("'", "''") + "'")
+            else:
+                rendered = rendered.replace(json.dumps(token), json.dumps(str(repo / relative), ensure_ascii=False))
+        expected_copy = '# generated from $MEMORY_REPO/qmd/dailydriver.yml, do not edit\n' + rendered
+        assert config.read_bytes() == expected_copy.encode('utf-8')
+        assert (canonical.read_bytes(), canonical.stat().st_mtime_ns) == canonical_before
+        assert calls('qmd')[count:] == [['--version'], ['--index', 'dailydriver', 'update'], ['--index', 'dailydriver', 'embed']]
+        print('PASS: present YAML is authoritative; only path scalars render, preserving contexts/comments/CRLF bytes and canonical mtime')
+        flow_data = {'global_context': 'Synthetic — metadata', **yaml_data(text)}
+        flow_text = json.dumps(flow_data, ensure_ascii=False)
+        canonical.write_bytes(flow_text.encode('utf-8'))
+        run('--no-embed')
+        flow_copy = flow_text
+        for relative in relative_roots.values():
+            flow_copy = flow_copy.replace('"path": ' + json.dumps('$MEMORY_REPO/' + relative),
+                                          '"path": ' + json.dumps(str(repo / relative), ensure_ascii=False))
+        assert config.read_bytes() == ('# generated from $MEMORY_REPO/qmd/dailydriver.yml, do not edit\n' + flow_copy).encode('utf-8')
+        canonical.write_bytes(text.encode('utf-8'))
+        run('--no-embed')
+        config.unlink()
+        config.symlink_to(canonical)
+        before = snapshot()
+        count = len(calls())
+        run(success=False)
+        assert snapshot() == before and len(calls()) == count
+        config.unlink()
+        run('--no-embed')
+        print('PASS: Unicode flow-YAML path spans render correctly; a symlinked host copy cannot overwrite canonical config')
 
         before = snapshot()
         count = len(calls('qmd'))
+        run()
+        assert config.stat().st_mtime_ns == before[str(config.relative_to(home))][1]
+        assert calls('npm').count(['install', '-g', '@tobilu/qmd@2.8.3']) == 1
+        before = snapshot()
         output = run('--check')
         assert 'check OK' in output.stdout and 'last embed age=360' in output.stdout
-        assert snapshot() == before and calls('qmd')[count:] == [['--version']]
+        assert snapshot() == before
         run('--check', success=False, extra={'MOCK_QMD_VERSION': '2.8.30'})
         assert snapshot() == before
-        print('PASS: --check verifies the exact CLI pin, config and SQLite paths, reports embed age and changes no HOME files')
-        with sqlite3.connect(database) as db:
-            db.execute('DELETE FROM content_vectors')
+        config.write_bytes(b'# drifted host copy\n')
         before = snapshot()
-        assert 'never (no embedded chunks)' in run('--check').stdout
+        run('--check', success=False)
         assert snapshot() == before
-        print('PASS: doctor reports an unembedded index explicitly without inventing a freshness threshold')
+        run('--no-embed')
+        assert config.read_bytes() == expected_copy.encode('utf-8')
+        assert calls('qmd')[-1] == ['--index', 'dailydriver', 'update']
+        print('PASS: repeats are idempotent; doctor checks exact pin/canonical-copy drift and embed age without writing; --no-embed skips embed')
 
-        # Stable launcher uses absolute npm/Node paths even without Node on GUI PATH.
+        good_text = canonical.read_bytes()
+        for transform in (
+            lambda d: d['collections']['wiki'].update(path='$MEMORY_REPO/memory/quarantine'),
+            lambda d: d['collections']['wiki'].update(path='$MEMORY_REPO/memory/core'),
+            lambda d: d['collections']['wiki'].update(path=str(repo / 'memory/wiki')),
+            lambda d: d['collections']['wiki'].update(path='$MEMORY_REPO/memory/wiki/../core'),
+            lambda d: d['collections']['wiki'].update(path='$MEMORY_REPO/outside'),
+            lambda d: d['collections']['wiki'].update(pattern='**/*'),
+            lambda d: d['collections']['wiki'].update(update=''),
+            lambda d: d.update(update='synthetic-command'),
+            lambda d: d['collections']['bank'].update(context={'update': 'forbidden even here'}),
+            lambda d: d['collections'].update(extra=d['collections']['wiki']),
+            lambda d: d.pop('models'),
+        ):
+            data = yaml_data(good_text.decode('utf-8'))
+            transform(data)
+            canonical.write_text(json.dumps(data))
+            before = snapshot()
+            count = len(calls())
+            run(success=False)
+            assert snapshot() == before and len(calls()) == count
+        canonical.write_bytes(good_text + b'update: one\nupdate: two\n')
+        count = len(calls())
+        run(success=False)
+        assert len(calls()) == count
+        canonical.write_bytes(good_text)
+        print('PASS: invalid canonical roots/masks/collections/models and any update key or duplicate key are refused before install/write')
+
+        wiki = repo / 'memory/wiki'
+        shutil.rmtree(wiki)
+        for target in (repo / 'memory/quarantine', repo / 'memory/core', home):
+            wiki.symlink_to(target, target_is_directory=True)
+            count = len(calls())
+            run(success=False)
+            assert len(calls()) == count
+            wiki.unlink()
+        wiki.mkdir()
+        print('PASS: resolved roots cannot escape the approved four or reach quarantine/core')
+
         launcher = home / '.local/bin/qmd'
         output = subprocess.run([str(launcher), '--version'], env=env | {'PATH': '/usr/bin:/bin'},
                                 capture_output=True, text=True, check=True)
@@ -230,7 +296,46 @@ def main():
                                  "require('node:child_process').execFileSync('qmd', ['--version'], {stdio: 'inherit'})"],
                                 env=env | {'PATH': '/usr/bin:/bin'}, capture_output=True, text=True, check=True)
         assert '2.8.3' in output.stdout
-        print('PASS: qmd and mcp-node find the pinned npm tool with a GUI-minimal PATH')
+        print('PASS: standalone installer works outside checkout cwd, and qmd/mcp-node work with GUI-minimal PATH')
+
+        model = home / '.cache/qmd/models/synthetic.gguf'
+        model.parent.mkdir(parents=True)
+        model.write_bytes(b'synthetic-model-never-copy')
+        other_index = database.parent / 'other.sqlite'
+        other_index.write_bytes(b'unrelated-index-never-delete')
+        with sqlite3.connect(database) as db:
+            db.execute('CREATE TABLE obsolete_marker (value TEXT)')
+        wal = Path(str(database) + '-wal')
+        shm = Path(str(database) + '-shm')
+        wal.write_bytes(b'')
+        shm.write_bytes(b'synthetic-idle-sidecar')
+        canonical_before = canonical.read_bytes()
+        output = run('--rebuild', extra={'EXPECT_REBUILD': '1'})
+        with sqlite3.connect(database) as db:
+            assert not db.execute("SELECT name FROM sqlite_master WHERE name='obsolete_marker'").fetchall()
+        assert model.read_bytes() == b'synthetic-model-never-copy'
+        assert other_index.read_bytes() == b'unrelated-index-never-delete'
+        assert not wal.exists() and not shm.exists() and canonical.read_bytes() == canonical_before
+        assert calls('qmd')[-2:] == [['--index', 'dailydriver', 'update'], ['--index', 'dailydriver', 'embed']]
+        assert not any(p.suffix in ('.sqlite', '.gguf') for p in repo.rglob('*'))
+        print('PASS: --rebuild removes only the named index/sidecars, updates/embeds fresh, and preserves models, other indexes and canonical config')
+
+        lock = repo / '.git/memory-mcp-writer.lock'
+        for reason in ('process', 'lock', 'wal'):
+            extra = {'MOCK_QMD_RUNNING': '1'} if reason == 'process' else {}
+            if reason == 'lock':
+                lock.write_text('synthetic held writer lock')
+            if reason == 'wal':
+                wal.write_bytes(b'synthetic-active-wal')
+            before = snapshot()
+            count = len(calls('qmd'))
+            run('--rebuild', success=False, extra=extra)
+            assert snapshot() == before and len(calls('qmd')) == count
+            if lock.exists():
+                lock.unlink()
+            if wal.exists():
+                wal.unlink()
+        print('PASS: --rebuild refuses running qmd, held memory writer lock or active WAL without modifying HOME')
 
         manifest.write_text('{"version":"9.9.9"}')
         before = snapshot()
@@ -238,58 +343,16 @@ def main():
         assert snapshot() == before
         run('--no-embed')
         assert json.loads(manifest.read_text())['version'] == '2.8.3'
-        assert calls('qmd')[-1] == ['--index', 'dailydriver', 'update']
         run(success=False, extra={'MOCK_EMBED_FAIL': '1'})
-        print('PASS: version drift reinstalls only the pin; --no-embed skips embedding and embed failures fail the run')
-
-        data = read_config()
-        data['collections']['wiki']['path'] = str(repo / 'memory/archive/sources')
-        data['collections']['wiki']['pattern'] = '*.txt'
-        data['collections']['leak'] = {'path': str(repo / 'memory/quarantine/nested'), 'pattern': '**/*.md'}
-        data['collections']['positions'] = {'path': str(repo / 'memory/core'), 'pattern': '**/*.md'}
-        data['collections']['other-repo-leak'] = {'path': str(home / 'another/memory/quarantine'), 'pattern': '**/*.md'}
-        data['collections']['ancestor'] = {'path': str(repo / 'memory'), 'pattern': '**/*.md'}
-        write_config(data)
+        with sqlite3.connect(database) as db:
+            db.execute('DELETE FROM content_vectors')
+        assert 'never (no embedded chunks)' in run('--check').stdout
+        with sqlite3.connect(database) as db:
+            db.execute('UPDATE store_collections SET path=? WHERE name=?', (str(repo / 'memory/quarantine'), 'bank'))
         before = snapshot()
         run('--check', success=False)
         assert snapshot() == before
-        count = len(calls('qmd'))
-        output = run('--no-embed')
-        assert 'WARNING: removing leak' in output.stderr
-        assert set(read_config()['collections']) == {'wiki', 'decisions', 'sources', 'bank'}
-        operations = calls('qmd')[count:]
-        first_add = next(i for i, a in enumerate(operations) if a[2:4] == ['collection', 'add'])
-        for name in ('leak', 'positions', 'other-repo-leak', 'ancestor'):
-            assert operations.index(['--index', 'dailydriver', 'collection', 'remove', name]) < first_add
-        run('--check')
-        print('PASS: wrong path/mask repaired; quarantine, core and ancestor collections warned/removed before indexing')
-        data = read_config()
-        wiki_path = data['collections']['wiki']['path']
-        decisions_path = data['collections']['decisions']['path']
-        data['collections']['wiki']['path'] = decisions_path
-        data['collections']['decisions']['path'] = wiki_path
-        write_config(data)
-        run('--no-embed')
-        assert read_config()['collections']['wiki']['path'] == wiki_path
-        assert read_config()['collections']['decisions']['path'] == decisions_path
-        print('PASS: swapped managed collection paths repaired without qmd duplicate-path conflicts')
-
-        # Unsafe expected roots are refused before even npm/brew discovery.
-        wiki = repo / 'memory/wiki'
-        shutil.rmtree(wiki)
-        for target in (repo / 'memory/quarantine', repo / 'memory/core'):
-            wiki.symlink_to(target, target_is_directory=True)
-            count = len(calls())
-            output = run('--no-embed', success=False)
-            assert 'refusing wiki' in output.stderr and len(calls()) == count
-            wiki.unlink()
-        wiki.mkdir()
-        nested = repo / 'memory/quarantine/accidental-repo'
-        make_repo(nested)
-        count = len(calls())
-        run('--no-embed', success=False, extra={'MEMORY_REPO': str(nested)})
-        assert len(calls()) == count
-        print('PASS: symlinked/nested quarantine/core collection paths are refused before installer activity')
+        print('PASS: pin drift repaired, embed failures propagated, and doctor handles unembedded or unsafe SQLite-only state read-only')
 
         second = home / 'alternate memory'
         make_repo(second)
@@ -297,32 +360,17 @@ def main():
         settings.parent.mkdir(parents=True)
         settings.write_text(json.dumps({'memoryRepo': str(second)}))
         run('--no-embed')
-        assert read_config()['collections']['wiki']['path'] == str(second / 'memory/wiki')
+        assert (second / 'qmd/dailydriver.yml').exists()
+        assert yaml_data(config.read_text())['collections']['wiki']['path'] == str(second / 'memory/wiki')
         run('--no-embed', extra={'MEMORY_REPO': str(repo)})
-        assert read_config()['collections']['wiki']['path'] == str(repo / 'memory/wiki')
-        before = snapshot()
-        run('--check', success=False, extra={'INDEX_PATH': str(root / 'other.sqlite'), 'MEMORY_REPO': str(repo)})
-        assert snapshot() == before
-        print('PASS: MEMORY_REPO overrides settings, settings overrides default; conflicting qmd locations refused')
-
-        with sqlite3.connect(database) as db:
-            db.execute('UPDATE store_collections SET path=? WHERE name=?',
-                       (str(repo / 'memory/quarantine'), 'bank'))
-        before = snapshot()
-        run('--check', success=False, extra={'MEMORY_REPO': str(repo)})
-        assert snapshot() == before
-        wal = Path(str(database) + '-wal')
-        wal.write_bytes(b'synthetic-active-wal')
-        before = snapshot()
-        output = run('--check', success=False, extra={'MEMORY_REPO': str(repo)})
-        assert 'active WAL' in output.stderr and snapshot() == before
-        print('PASS: doctor catches unsafe SQLite-only paths and refuses live WAL without writing sidecars')
-    print('All qmd sandbox checks passed (no real HOME or network changes).')
-
-
-def shlex_quote(value):
-    import shlex
-    return shlex.quote(value)
+        assert yaml_data(config.read_text())['collections']['wiki']['path'] == str(repo / 'memory/wiki')
+        for override in ('INDEX_PATH', 'QMD_GENERATE_MODEL'):
+            before = snapshot()
+            run('--check', success=False, extra={'MEMORY_REPO': str(repo), override: 'synthetic-conflict'})
+            assert snapshot() == before
+        assert all(args[2:] == ['rev-parse', '--git-common-dir'] for args in calls('git'))
+        print('PASS: repository settings precedence preserved; conflicting qmd overrides refused; mocked git saw no add/commit/push')
+    print('All DEC-0018 qmd sandbox checks passed (no real HOME, network or git mutation).')
 
 
 if __name__ == '__main__':

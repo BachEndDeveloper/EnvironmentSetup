@@ -259,73 +259,52 @@ completion.
 
 ## Local search (qmd)
 
-macOS setup calls `scripts/install-qmd.sh` after MCP/AI-Skills deployment and before the
-memory-daily scheduler. It installs **`@tobilu/qmd@2.8.3`** globally with npm and ensures
-Homebrew `sqlite` is installed. The sole installer pin is `QMD_VERSION` in that shell script.
-It requires Node **>=22**, npm, Homebrew and Python 3 (already used by MCP setup). Bun is
-**not required for the npm install**: the pinned package declares Node >=22, ships built
-JavaScript, and its published launcher defaults to Node for npm installs. Upstream also lists
-Bun >=1.0 as an alternative runtime; this installer does not install it.
+Use the **separate, standalone** installer; full macOS setup also calls it after
+MCP/AI-Skills and before the daily scheduler. It pins npm-global
+**`@tobilu/qmd@2.8.3`** and ensures Homebrew SQLite. Requirements: Node >=22, npm,
+Homebrew, Python 3 and macOS Ruby's standard-library YAML parser. Bun is not
+required by the npm distribution. Git/pgrep are used for rebuild safety checks.
 
 ```sh
-bash scripts/install-qmd.sh              # configure, update, embed
-bash scripts/install-qmd.sh --no-embed   # configure/update only; defer embeddings/models
-bash scripts/install-qmd.sh --check      # read-only doctor; nonzero on version/path/index errors
-# Optional data-repository override (otherwise settings, then ~/source/DailyDriver):
-MEMORY_REPO=/path/to/memory-repo bash scripts/install-qmd.sh
+bash scripts/install-qmd.sh              # validate/copy config, install, update, embed
+bash scripts/install-qmd.sh --no-embed   # configure/update, defer embeddings/models
+bash scripts/install-qmd.sh --rebuild    # fresh named index; retain model cache
+bash scripts/install-qmd.sh --check      # read-only doctor; no repair or proposal
 ```
 
-Data-repository resolution is `MEMORY_REPO` → `~/.config/memory-mcp/config.json`'s `memoryRepo`
-→ `$HOME/source/DailyDriver`. The repository and four collection directories must already
-exist; setup does not write memory files or create those directories. Empty/invalid paths fail
-rather than silently using another repository. Collection paths and the literal mask `**/*.md`
-are reconciled in the isolated **`qmd --index dailydriver`** index:
+**Canonical config:** `$MEMORY_REPO/qmd/dailydriver.yml` belongs in private
+DailyDriver, reviewed and committed **by Martin**, never in this public repository.
+If absent, installation writes an **uncommitted proposal** with four generic
+collections/contexts and explicit upstream model pins, then prints the manual
+review/commit command. It never runs Git add/commit/push or changes memory files.
+Existing canonical config is authoritative: no ad hoc collection/context changes.
 
-| Collection | Path under the data repository | Context |
-| --- | --- | --- |
-| `wiki` | `memory/wiki` | Compiled pages; every statement cited; inbound attributed |
-| `decisions` | `memory/archive/decisions` | Martin's decisions, his own words (authored) |
-| `sources` | `memory/archive/sources` | Imported raw sources; corpus tells authorship (sessions/mail/teams/tasks = Martin; docs = the document; projects = the artifact) |
-| `bank` | `memory/bank` | Claims by others, attributed; **never Martin's view** |
+Portable canonical paths use literal `$MEMORY_REPO/memory/...` tokens for `wiki`,
+`archive/decisions`, `archive/sources` and `bank`, each with `**/*.md`. The installer
+validates before installing, renders only those paths into
+`~/.config/qmd/dailydriver.yml`, and validates resolved roots again. All other
+bytes are preserved. Quarantine, core, other roots and any `update:` key are
+refused. Repository resolution is `MEMORY_REPO` → `memoryRepo` in
+`~/.config/memory-mcp/config.json` → `$HOME/source/DailyDriver`.
 
-**Neither `memory/quarantine` nor `memory/core` is indexed**, including via resolved root
-symlinks or ancestor paths such as `memory/`. Unsafe expected roots are refused before any
-install/index command. Existing extra collections overlapping either forbidden tree are
-removed with a warning before indexing. Matching collections and contexts are kept; wrong
-paths/masks are removed and recreated. Other safe collections are left alone. Every install
-runs `qmd --index dailydriver update`, followed by `embed` unless `--no-embed` was supplied.
-The last line reports success/failure; any failed install, update or embed returns nonzero.
+The disposable index lives at `~/.cache/qmd/dailydriver.sqlite`; models download
+on first use to `~/.cache/qmd/models/`. **Never copy or commit either.** Rebuild on
+a new machine by cloning DailyDriver and running the installer, not by migrating
+cache files. `--rebuild` discards only this named index/sidecars, refuses running
+qmd, an active WAL or a held memory writer lock, then updates/embeds. Rebuild time
+is **not yet measured (hardware-dependent)**; allow additional network time for
+cold model downloads (roughly 2 GB for all models).
 
-The config is `~/.config/qmd/dailydriver.yml`; the SQLite index is
-`~/.cache/qmd/dailydriver.sqlite`. Conflicting `INDEX_PATH`, `QMD_CONFIG_DIR`,
-`XDG_CONFIG_HOME` or `XDG_CACHE_HOME` overrides are refused so setup and memory-mcp use the
-same index. Models auto-download from Hugging Face on first use to `~/.cache/qmd` (budget
-roughly **2 GB** for the full model set; `embed` only needs the embedding model). Installation
-and first model use need network access; indexing/search keep queries and content local.
-`--no-embed` defers semantic-search readiness, not collection setup or the keyword index.
+`--check` verifies the pin, canonical/rendered-copy consistency, SQLite
+collection paths/masks and last embedded-chunk age without writing. `mcp-node`
+adds local launchers and the selected Node bin to GUI-host PATH; the qmd installer
+supplies a local launcher for custom npm prefixes. No `MEMORY_QMD_BIN` entry in
+`MCP/servers.json` is needed, and qmd's own MCP server/skill is not registered.
+Agents use `memory_search`; memory-mcp owns retrieval policy and BM25 fallback.
 
-`--check` compares both the installed npm package and CLI version with the pin, verifies
-config **and SQLite** collection paths/masks, rejects quarantine/core overlaps, and prints
-last embed age from the latest chunk's `embedded_at` timestamp (or `never` for no chunks).
-That timestamp is not a last-run ledger: an unchanged incremental embed need not change it,
-and age has no arbitrary pass/fail threshold. The doctor never runs `update`, `embed`, npm
-install, brew, or qmd's database-opening status/list commands. It reads SQLite immutably and
-refuses an active WAL instead of creating sidecars or reading an outdated checkpoint; retry
-once any refresh is finished. Missing or incorrect prerequisites exit nonzero without repair.
-
-**GUI-host discovery:** `mcp-node` adds `~/.local/bin` and the selected nvm Node's global bin
-to its child `PATH`, without sourcing shell profiles. The qmd installer also maintains a
-`~/.local/bin/qmd` launcher with install-time-resolved absolute Node/npm-tool paths (unless
-npm already owns that exact path). This covers custom npm prefixes and minimal GUI/scheduler
-PATHs without hardcoding a username. An unrelated regular file at that launcher path is
-refused, not overwritten. Re-run the MCP installer to deploy the updated `mcp-node`, and
-re-run the qmd installer after moving/removing the Node installation or npm prefix.
-**No `MEMORY_QMD_BIN` entry is needed in `MCP/servers.json`.** memory-mcp finds `qmd` on PATH
-(or accepts an operator-provided absolute `MEMORY_QMD_BIN` override). Agents use
-`memory_search`, never qmd directly; qmd's own MCP server/skill is not registered. Retrieval
-policy, provenance, wiki-first ordering and BM25 fallback belong to memory-mcp.
-
-Sandbox gate (temporary HOME; mocked npm/qmd/brew; no downloads or live changes):
+See [the qmd ADR/runbook](docs/qmd.md) for exact model pins, private-config
+ownership, rebuild guards, upgrade procedure, doctor caveats and GUI discovery.
+Sandbox gate (temporary HOME; real YAML/Node; mocked installers/Git/process check):
 
 ```sh
 python3 scripts/test-qmd-install.py

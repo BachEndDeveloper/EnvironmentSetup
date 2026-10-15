@@ -44,9 +44,14 @@ update mechanisms; this contract does not imply they have the same release-copy 
 needed for this npm distribution. Homebrew SQLite remains Homebrew-managed. Re-run the qmd
 installer after a deliberate pin change, then its read-only `--check`, and re-benchmark
 retrieval before accepting an upgrade. Full macOS setup now configures the `dailydriver`
-named index and embeds before installing the scheduler; no qmd MCP registration is added.
-See README's **Local search (qmd)** for paths, first-use model downloads, `--no-embed`,
-GUI-host PATH discovery and the four-collection quarantine/core boundary.
+named index and embeds before installing the scheduler; the installer also works standalone.
+DEC-0018 makes `$MEMORY_REPO/qmd/dailydriver.yml` canonical in private DailyDriver, with
+portable path tokens and explicit model pins; Martin reviews/commits it himself. Installation
+only proposes a missing config (uncommitted), then validates and renders the host copy.
+It never stages/commits/pushes, mutates collections ad hoc or copies index/model caches.
+See [docs/qmd.md](docs/qmd.md) for config ownership, `--rebuild`, `--check`, first-use
+downloads, upgrade/re-benchmark steps and GUI PATH discovery. Rebuild time is not yet measured
+(hardware-dependent); the runbook has the measurement line for the benchmark result.
 
 ## The release contract (every released repository)
 
@@ -114,11 +119,12 @@ are operator follow-ups, not sandbox gates. The daily-memory sandbox also uses t
 and mocked Pi/launchctl/osascript to cover opt-in/out, idempotent installs, overlap/stale locks,
 read-only prerequisites, marker/exit failures, partial notifications and log retention. It never
 loads a real launchd job or invokes a real agent. The qmd sandbox uses temporary HOME,
-mocked npm/qmd/brew and real Node to verify the exact pin, SQLite prerequisite, four collection
-paths/contexts, repeat installs, wrong-path repair, quarantine/core refusal and cleanup,
-read-only doctor (including SQLite-only violations), deferred embedding/failure handling,
-settings precedence and minimal-PATH launcher discovery. It never installs real packages or
-downloads models.
+real Ruby YAML/Node and mocked npm/qmd/brew/git/pgrep. It covers the exact pin, SQLite,
+missing-config proposals without Git mutation, authoritative private-config rendering with
+byte preservation, canonical/rendered safety checks before installation, read-only doctor,
+idempotence, rebuild deletion scope and process/WAL/writer-lock guards, deferred embedding,
+failure handling, settings precedence and GUI PATH discovery. It never installs real
+packages, downloads models or stages/commits/pushes a repository.
 
 ## Holding a machine back
 

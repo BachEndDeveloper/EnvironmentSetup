@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provision/check the dailydriver qmd index; never write to the memory repository."""
+"""Install/check qmd from the portable, privately reviewed DailyDriver config."""
 import argparse
 import datetime as dt
 import json
@@ -14,7 +14,6 @@ from pathlib import Path
 
 INDEX = 'dailydriver'
 MASK = '**/*.md'
-# Deliberately no core: reviewed positions are read through memory_core_read.
 COLLECTIONS = {
     'wiki': ('memory/wiki', 'Compiled pages; every statement cited; inbound attributed'),
     'decisions': ('memory/archive/decisions', "Martin's decisions, his own words (authored)"),
@@ -22,7 +21,52 @@ COLLECTIONS = {
                 '(sessions/mail/teams/tasks = Martin; docs = the document; projects = the artifact)'),
     'bank': ('memory/bank', "Claims by others, attributed; **never Martin's view**"),
 }
+# Explicit upstream v2.8.3 defaults; proposing a config never follows newer defaults.
+MODELS = {
+    'embed': 'hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf',
+    'rerank': 'hf:ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF/qwen3-reranker-0.6b-q8_0.gguf',
+    'generate': 'hf:tobil/qmd-query-expansion-1.7B-gguf/qmd-query-expansion-1.7B-q4_k_m.gguf',
+}
+HEADER = '# generated from $MEMORY_REPO/qmd/dailydriver.yml, do not edit\n'
 WRAPPER_MARKER = '# EnvironmentSetup: npm qmd launcher'
+# macOS Ruby's standard-library safe loader permits validation before npm installs.
+# Scalar source spans let us render ONLY collection paths, preserving other bytes.
+YAML_READER = r'''
+require 'yaml'
+require 'json'
+text = STDIN.read
+stream = Psych.parse_stream(text)
+raise 'one document required' unless stream.children.length == 1
+root = stream.children.first.root
+def inspect_node(node)
+  raise 'aliases not allowed' if node.is_a?(Psych::Nodes::Alias)
+  if node.is_a?(Psych::Nodes::Mapping)
+    keys = node.children.each_slice(2).map do |key, _|
+      raise 'scalar keys required' unless key.is_a?(Psych::Nodes::Scalar)
+      key.value
+    end
+    raise 'duplicate keys not allowed' unless keys.uniq.length == keys.length
+  end
+  (node.children || []).each { |child| inspect_node(child) }
+end
+inspect_node(root)
+def field(node, name)
+  return nil unless node.is_a?(Psych::Nodes::Mapping)
+  pair = node.children.each_slice(2).find { |key, _| key.value == name }
+  pair && pair[1]
+end
+paths = []
+collections = field(root, 'collections')
+if collections.is_a?(Psych::Nodes::Mapping)
+  collections.children.each_slice(2) do |name, collection|
+    path = field(collection, 'path')
+    next unless path.is_a?(Psych::Nodes::Scalar)
+    paths << {name: name.value, line: path.start_line, column: path.start_column,
+              end_line: path.end_line, end_column: path.end_column, style: path.style}
+  end
+end
+puts JSON.generate({config: YAML.safe_load(text, permitted_classes: [], aliases: false), paths: paths})
+'''
 
 
 def command(*args, capture=False):
@@ -46,25 +90,22 @@ def memory_paths():
     repo = Path(configured).expanduser().resolve()
     if not repo.is_dir():
         raise ValueError('memory repository does not exist; set MEMORY_REPO or memoryRepo')
-    # Check both lexical and resolved roots: a symlink must not hide a forbidden path.
     forbidden = [repo / 'memory' / name for name in ('quarantine', 'core')]
     forbidden += [path.resolve() for path in forbidden]
     paths = {name: repo / relative for name, (relative, _) in COLLECTIONS.items()}
-    for name, path in paths.items():
+    for path in paths.values():
         if unsafe_path(path, forbidden):
-            raise ValueError(f'refusing {name}: collection overlaps memory/quarantine or memory/core')
+            raise ValueError('refusing collection root: overlaps memory/quarantine or memory/core')
         if not path.is_dir():
-            raise ValueError(f'missing collection directory: {name} (initialize the memory repository first)')
-    return paths, forbidden
+            raise ValueError('missing memory collection directory; initialize the memory repository first')
+    return repo, paths, forbidden
 
 
 def unsafe_path(path, forbidden):
-    path = Path(path).expanduser()
+    path = Path(path)
     if not path.is_absolute():
-        raise ValueError('collection paths must be absolute')
+        raise ValueError('rendered collection paths must be absolute')
     for candidate in (path, path.resolve()):
-        # Also reject forbidden trees in another repository (or a MEMORY_REPO
-        # accidentally rooted inside one), not only this repository's roots.
         if any(part == 'memory' and candidate.parts[index + 1] in ('quarantine', 'core')
                for index, part in enumerate(candidate.parts[:-1])):
             return True
@@ -74,46 +115,82 @@ def unsafe_path(path, forbidden):
     return False
 
 
-def read_config(package, config):
-    if not config.exists():
-        return {}
-    # Use the YAML parser shipped with the pinned package, not an extra global dependency.
-    # Do not invoke qmd status/list: opening its store can migrate/create a database.
-    script = """
-const fs = require('node:fs');
-const { createRequire } = require('node:module');
-const yaml = createRequire(process.argv[1] + '/package.json')('yaml');
-process.stdout.write(JSON.stringify(yaml.parse(fs.readFileSync(process.argv[2], 'utf8'))));
-"""
-    data = json.loads(command('node', '-e', script, package, config, capture=True))
+def parse_yaml(text):
+    result = subprocess.run(['ruby', '-e', YAML_READER], input=text,
+                            capture_output=True, text=True, check=False)
+    if result.returncode:
+        # Do not echo private YAML lines from a parser diagnostic.
+        raise ValueError('invalid YAML (one document, unique scalar keys, no aliases/custom types required)')
+    return json.loads(result.stdout)
+
+
+def no_update_keys(value):
+    if isinstance(value, dict):
+        if 'update' in value:
+            raise ValueError('config must not contain any update: key')
+        for child in value.values():
+            no_update_keys(child)
+    elif isinstance(value, list):
+        for child in value:
+            no_update_keys(child)
+
+
+def validate_config(data, expected, forbidden, canonical=False):
+    no_update_keys(data)
     if not isinstance(data, dict) or not isinstance(data.get('collections'), dict):
-        raise ValueError('invalid qmd collections config')
-    for name, collection in data['collections'].items():
-        if not isinstance(collection, dict) or not isinstance(collection.get('path'), str):
-            raise ValueError(f'invalid collection: {name}')
-    return data['collections']
-
-
-def check_collections(collections, expected, forbidden):
-    errors = []
-    for name, collection in collections.items():
-        if unsafe_path(collection['path'], forbidden):
-            errors.append(f'{name}: forbidden quarantine/core overlap')
+        raise ValueError('config must contain a collections mapping')
+    collections = data['collections']
+    if set(collections) != set(COLLECTIONS):
+        raise ValueError('config must contain exactly wiki, decisions, sources and bank')
     for name, path in expected.items():
-        collection = collections.get(name, {})
-        if collection.get('path') != str(path) or collection.get('pattern') != MASK:
-            errors.append(f'{name}: missing or incorrect path/mask')
-    return errors
+        collection = collections[name]
+        if not isinstance(collection, dict) or collection.get('pattern') != MASK:
+            raise ValueError('each collection must use the literal **/*.md pattern')
+        wanted = '$MEMORY_REPO/' + COLLECTIONS[name][0] if canonical else str(path)
+        if collection.get('path') != wanted:
+            raise ValueError('collection root is not one of the four approved roots')
+        if unsafe_path(path, forbidden) or path.resolve() != path:
+            raise ValueError('collection root resolves outside its approved memory directory')
+    models = data.get('models')
+    if not isinstance(models, dict) or any(not isinstance(models.get(key), str) or not models[key]
+                                           for key in MODELS):
+        raise ValueError('config requires explicit embed, rerank and generate model pins')
+
+
+def proposed_config():
+    lines = ['# Proposed qmd config: review and commit this file yourself.', 'collections:']
+    for name, (relative, label) in COLLECTIONS.items():
+        lines += [f'  {name}:', f'    path: "$MEMORY_REPO/{relative}"',
+                  f'    pattern: "{MASK}"', '    context:', f'      "": {json.dumps(label)}']
+    lines += ['models:'] + [f'  {key}: {json.dumps(value)}' for key, value in MODELS.items()]
+    return '\n'.join(lines) + '\n'
+
+
+def render_config(text, spans, expected):
+    lines = text.splitlines(keepends=True)
+    edits = []
+    for span in spans:
+        if span['line'] != span['end_line'] or span['style'] not in (1, 2, 3):
+            raise ValueError('collection paths must be single-line plain or quoted scalars')
+        start = sum(len(line) for line in lines[:span['line']]) + span['column']
+        end = sum(len(line) for line in lines[:span['end_line']]) + span['end_column']
+        path = str(expected[span['name']])
+        replacement = "'" + path.replace("'", "''") + "'" if span['style'] == 2 else json.dumps(path, ensure_ascii=False)
+        edits.append((start, end, replacement))
+    if len(edits) != len(COLLECTIONS):
+        raise ValueError('config must have four explicit collection path scalars')
+    for start, end, replacement in sorted(edits, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    return HEADER + text
 
 
 def read_index(database):
     if not database.is_file():
         raise ValueError('named index does not exist')
-    # immutable=1 guarantees no journal/SHM creation during --check. Refuse a live
-    # WAL rather than silently reading an old checkpoint without its newer rows.
     wal = Path(str(database) + '-wal')
     if wal.exists() and wal.stat().st_size:
-        raise ValueError('index has an active WAL; finish the qmd refresh and retry --check')
+        raise ValueError('index has an active WAL; finish the qmd refresh and retry')
+    # Immutable reads cannot create journal/SHM sidecars or migrate qmd's store.
     with sqlite3.connect(database.as_uri() + '?mode=ro&immutable=1', uri=True) as db:
         collections = {name: {'path': path, 'pattern': pattern}
                        for name, path, pattern in db.execute('SELECT name, path, pattern FROM store_collections')}
@@ -131,10 +208,30 @@ def embed_age(last_embed):
     return f'{age}s (latest embedded chunk: {last_embed})'
 
 
+def rebuild_guard(repo, database):
+    processes = subprocess.run(['pgrep', '-f', r'(^|/)(qmd|qmd[.]js|qmd[.]ts)([[:space:]]|$)'],
+                               capture_output=True, text=True, check=False)
+    if processes.returncode == 0:
+        raise ValueError('refusing --rebuild: a qmd process is running; stop it and retry')
+    if processes.returncode != 1:
+        raise ValueError('refusing --rebuild: could not check running qmd processes')
+    common = Path(command('git', '-C', repo, 'rev-parse', '--git-common-dir', capture=True).strip())
+    common = common if common.is_absolute() else repo / common
+    lock = common / 'memory-mcp-writer.lock'
+    if lock.exists() or lock.is_symlink():
+        raise ValueError('refusing --rebuild: memory-mcp writer lock is held; finish the writer and retry')
+    wal = Path(str(database) + '-wal')
+    if wal.exists() and wal.stat().st_size:
+        raise ValueError('refusing --rebuild: index has an active WAL; finish the qmd refresh and retry')
+    for path in (database, wal, Path(str(database) + '-shm')):
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise ValueError('refusing --rebuild: named index/sidecar is not a regular file')
+
+
 def install_launcher(binary):
     local = Path.home() / '.local/bin/qmd'
     if local == binary:
-        return  # npm itself owns this path when prefix=$HOME/.local.
+        return
     node_binary = shutil.which('node')
     if node_binary is None:
         raise ValueError('node is missing from PATH')
@@ -157,15 +254,39 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('version', help=argparse.SUPPRESS)
     modes = parser.add_mutually_exclusive_group()
-    modes.add_argument('--check', action='store_true', help='read-only version, paths and embed-age check')
-    modes.add_argument('--no-embed', action='store_true', help='configure and update, but skip model download/embedding')
+    modes.add_argument('--check', action='store_true', help='read-only config, version, paths and embed-age doctor')
+    modes.add_argument('--no-embed', action='store_true', help='install/configure/update, but skip embedding')
+    modes.add_argument('--rebuild', action='store_true', help='discard only this index/sidecars, then update and embed')
     args = parser.parse_args()
-    expected, forbidden = memory_paths()  # Refuse unsafe inputs before any installer command.
-    # A different config/cache override could mix this index with another qmd use.
-    # Use the same standard HOME locations as memory-mcp's named index.
-    for variable in ('INDEX_PATH', 'QMD_CONFIG_DIR', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME'):
+    repo, expected, forbidden = memory_paths()
+    canonical = repo / 'qmd/dailydriver.yml'
+    if canonical.is_symlink() or canonical.parent.is_symlink():
+        raise ValueError('canonical qmd config/directory must not be a symlink')
+    for variable in ('INDEX_PATH', 'QMD_CONFIG_DIR', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME',
+                     'QMD_EMBED_MODEL', 'QMD_RERANK_MODEL', 'QMD_GENERATE_MODEL'):
         if os.environ.get(variable):
-            raise ValueError(f'unset {variable} to provision/check the standard dailydriver index')
+            raise ValueError(f'unset {variable} to use the canonical dailydriver config and cache')
+    exists = canonical.exists()
+    if args.check and not exists:
+        raise ValueError('canonical qmd config is missing (run the installer to propose it)')
+    text = canonical.read_bytes().decode('utf-8') if exists else proposed_config()
+    parsed = parse_yaml(text)
+    validate_config(parsed['config'], expected, forbidden, canonical=True)
+    rendered = render_config(text, parsed['paths'], expected)
+    validate_config(parse_yaml(rendered)['config'], expected, forbidden)
+    home = Path.home().resolve()
+    config = home / '.config/qmd/dailydriver.yml'
+    if config.resolve() != config:
+        raise ValueError('installed qmd config/directory must not be a symlink')
+    database = home / '.cache/qmd/dailydriver.sqlite'
+    if args.rebuild:
+        rebuild_guard(repo, database)
+    # Config validation precedes npm/brew installation and all writes.
+    if not exists:
+        canonical.parent.mkdir(parents=True, exist_ok=True)
+        with canonical.open('x', encoding='utf-8') as proposal:
+            proposal.write(text)
+        print('Review and commit it yourself: cd $MEMORY_REPO && git add qmd/ && git commit -m "qmd: index config"')
     node_version = command('node', '--version', capture=True).strip()
     match = re.fullmatch(r'v(\d+)\.\d+\.\d+', node_version)
     if not match or int(match[1]) < 22:
@@ -182,7 +303,6 @@ def main():
     else:
         if not shutil.which('brew'):
             raise ValueError('Homebrew is required (brew install sqlite)')
-        # brew list exits nonzero for a missing formula; handle that without masking install failures.
         sqlite = subprocess.run(['brew', 'list', '--versions', 'sqlite'],
                                 capture_output=True, text=True, check=False)
         if sqlite.returncode or not sqlite.stdout.strip():
@@ -195,18 +315,15 @@ def main():
             errors.append(f'qmd CLI version does not match pin {args.version}')
     else:
         errors.append('qmd global binary is missing')
-    config = Path.home() / '.config/qmd/dailydriver.yml'
-    database = Path.home() / '.cache/qmd/dailydriver.sqlite'
     if args.check:
-        if config.exists() and manifest.exists():
-            collections = read_config(package, config)
-            errors += ['config: ' + error for error in check_collections(collections, expected, forbidden)]
-        else:
-            errors.append('named index config is missing (or qmd is not installed)')
+        if not config.exists():
+            errors.append('installed config is missing')
+        elif config.read_bytes() != rendered.encode('utf-8'):
+            errors.append('installed config differs from the rendered canonical config')
         age = 'unknown'
         try:
             collections, last_embed = read_index(database)
-            errors += ['index: ' + error for error in check_collections(collections, expected, forbidden)]
+            validate_config({'collections': collections, 'models': parsed['config']['models']}, expected, forbidden)
             age = embed_age(last_embed)
         except (ValueError, sqlite3.Error) as error:
             errors.append(str(error))
@@ -216,33 +333,17 @@ def main():
         return 1 if errors else 0
     if errors:
         raise ValueError('; '.join(errors))
-    collections = read_config(package, config)
-    qmd = (binary, '--index', INDEX)
-    # Remove unsafe collections before any add/update can scan content. Ancestor
-    # paths (e.g. memory/) are unsafe too, even with a mask excluding quarantine.
-    for name, collection in list(collections.items()):
-        if unsafe_path(collection['path'], forbidden):
-            print(f'WARNING: removing {name}: collection overlaps quarantine/core', file=sys.stderr)
-            command(*qmd, 'collection', 'remove', name)
-            del collections[name]
-    # Remove all wrong managed paths first: two collections may have swapped
-    # roots, and qmd refuses adding a path/mask already owned by another name.
-    for name, path in expected.items():
-        existing = collections.get(name)
-        if existing and (existing['path'] != str(path) or existing.get('pattern') != MASK):
-            command(*qmd, 'collection', 'remove', name)
-            del collections[name]
-    for name, path in expected.items():
-        existing = collections.get(name)
-        if not existing:
-            command(*qmd, 'collection', 'add', path, '--name', name, '--mask', MASK)
-        label = COLLECTIONS[name][1]
-        if not existing or existing.get('context', {}).get('') != label:
-            command(*qmd, 'context', 'add', f'qmd://{name}', label)
-    errors = check_collections(read_config(package, config), expected, forbidden)
-    if errors:
-        raise ValueError('; '.join(errors))
+    config.parent.mkdir(parents=True, exist_ok=True)
+    if not config.exists() or config.read_bytes() != rendered.encode('utf-8'):
+        config.write_bytes(rendered.encode('utf-8'))
     install_launcher(binary)
+    if args.rebuild:
+        # Recheck after installation, immediately before the narrowly scoped deletion.
+        rebuild_guard(repo, database)
+        for path in (database, Path(str(database) + '-wal'), Path(str(database) + '-shm')):
+            if path.exists():
+                path.unlink()
+    qmd = (binary, '--index', INDEX)
     command(*qmd, 'update')
     if not args.no_embed:
         command(*qmd, 'embed')

@@ -3,6 +3,8 @@
   "servers": [
     {
       "name": "m365-personal-productivity",
+      "piProtocolVersion": "auto",
+      "_piProtocolVersionNote": "Pi adapter: negotiate MCP 2026-07-28 with legacy fallback (m365-mcp v0.7.0+). Set legacy to roll back. Does not change Claude hosts.",
       "repo": "git@github.com:BachEndDeveloper/m365-mcp.git",
       "ref": "latest",
       "dir": "$HOME/.local/share/mcp/m365-mcp",
@@ -24,6 +26,7 @@
         "ALLOW_SEND": "true",
         "ALLOW_DELETE": "true",
         "ALLOW_RULES": "true",
+        "MCP_NODE_MAJOR": "24",
         "CLIENT_ID": "557821c4-669d-4af2-aa4e-20d13e4de25a"
       },
       "_envNote": "No secrets here. The server ships config.defaults.json with a non-secret tenant id; export M365_TENANT_ID before setup for a machine-local override, never commit a real tenant id. All write gates are ON by the owner's decision (all write functionality wanted; security engaged; separate app registration). Every send, delete and rule change still goes through the server's staged preview + confirm_action approval, so 'on' means 'ask', not 'execute silently'. These env gates are superseded by the per-tool always/ask/off policy file once feature F0 ships; set any of them to 'false' here to force a capability off on every host.",
@@ -32,6 +35,8 @@
     },
     {
       "name": "memory",
+      "piProtocolVersion": "auto",
+      "_piProtocolVersionNote": "Pi adapter: negotiate MCP 2026-07-28 with legacy fallback (memory-mcp v0.9.0+). Set legacy to roll back. Does not change Claude hosts.",
       "repo": "git@github.com:BachEndDeveloper/memory-mcp.git",
       "ref": "latest",
       "dir": "$HOME/.local/share/mcp/memory-mcp",
@@ -43,9 +48,10 @@
       "entry": "dist/index.js",
       "description": "Martin's second brain: raw archive and bank, a compiled wiki, reviewed core, and local search via qmd over the DailyDriver data repo, with a one-way publish path",
       "hosts": [
-        "pi"
+        "pi",
+        "claude-desktop"
       ],
-      "_hostsNote": "Pi only, matching how it was registered by hand before. Claude Desktop is planned as a later read surface; widen this list deliberately, since writes are enabled.",
+      "_hostsNote": "Pi and Claude Desktop share the released local server and write policy. Desktop capture is authorised; core writes still require reviewed confirmation. Claude Code is not added by this change.",
       "requires": [
         "$HOME/source/DailyDriver"
       ],

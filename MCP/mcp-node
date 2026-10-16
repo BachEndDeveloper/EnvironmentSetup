@@ -1,10 +1,21 @@
 #!/bin/bash
 # Stable node launcher for MCP servers: follows nvm's `default` alias,
-# so removing a specific nvm version never breaks Claude Desktop.
+# unless MCP_NODE_MAJOR selects an installed, supported major for that server.
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 ALIAS_FILE="$NVM_DIR/alias/default"
 NODE_BIN=""
-if [ -r "$ALIAS_FILE" ]; then
+if [ -n "${MCP_NODE_MAJOR:-}" ]; then
+  if [[ ! "$MCP_NODE_MAJOR" =~ ^[0-9]+$ ]]; then
+    echo "mcp-node: MCP_NODE_MAJOR must be a numeric Node major." >&2
+    exit 1
+  fi
+  # shellcheck disable=SC2012 # nvm controls these version-directory names.
+  NODE_BIN="$(ls -d "$NVM_DIR"/versions/node/v"$MCP_NODE_MAJOR".* 2>/dev/null | sort -V | tail -1)/bin/node"
+  if [ ! -x "$NODE_BIN" ]; then
+    echo "mcp-node: required Node major is not installed in nvm; refusing fallback." >&2
+    exit 1
+  fi
+elif [ -r "$ALIAS_FILE" ]; then
   V="$(cat "$ALIAS_FILE")"
   [ -x "$NVM_DIR/versions/node/$V/bin/node" ] && NODE_BIN="$NVM_DIR/versions/node/$V/bin/node"
 fi

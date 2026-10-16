@@ -85,6 +85,12 @@ if kind == "remote":
         raise SystemExit(f"remote url must be an environment-variable reference for {s['name']}")
     if s.get("env") or s.get("piPackage"):
         raise SystemExit(f"remote entries do not support env/piPackage; use machine-local config for {s['name']}")
+protocol = s.get("piProtocolVersion")
+if "piProtocolVersion" in s and protocol not in ("legacy", "auto", "2026-07-28"):
+    raise SystemExit(f"invalid piProtocolVersion for {s['name']}")
+if protocol is not None and kind == "machine-local":
+    raise SystemExit(f"piProtocolVersion is not managed for machine-local server {s['name']}")
+print(f'SRV_PI_PROTOCOL={shlex.quote(protocol or "")}')
 d = os.path.expandvars(s.get("dir", ""))
 print(f'SRV_TYPE={shlex.quote(kind)}')
 print(f'SRV_NAME={shlex.quote(s["name"])}')
@@ -279,6 +285,11 @@ PY
 			pi_args+=("${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"}" -- "$LAUNCHER" "$ENTRY_PATH")
 		fi
 		if pi "${pi_args[@]}" >/dev/null 2>&1; then
+			# The CLI cannot express the adapter's protocolVersion extension. Patch
+			# only that field after registration; never rebuild the whole registry.
+			if [[ -n "$SRV_PI_PROTOCOL" ]]; then
+				python3 set-pi-protocol.py "$HOME/.pi/agent/mcp.json" "$SRV_NAME" "$SRV_PI_PROTOCOL"
+			fi
 			echo "  Pi: $SRV_NAME registered via 'pi mcp add'"
 		else
 			echo "WARNING: 'pi mcp add' failed for $SRV_NAME - add it manually:" >&2

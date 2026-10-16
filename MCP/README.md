@@ -29,12 +29,54 @@ shadow a managed entry. Older adapters/Pi versions with different discovery are 
 this model: update them before using it. Use the adapter's interactive `/mcp` view to verify the
 actual runtime; `pi mcp list` is the native CLI's health view, not proof of adapter health.
 
+## Pi protocol negotiation (SDK v2 servers)
+
+`piProtocolVersion` in a managed server's `servers.json` entry controls only
+Pi's adapter, not Claude Desktop or Code:
+
+| Value | Behaviour |
+| --- | --- |
+| `auto` | Probe for MCP 2026-07-28 and fall back to the legacy handshake |
+| `2026-07-28` | Pin the new revision; no legacy fallback |
+| `legacy` | Use the 2025-era handshake (rollback) |
+| omitted | Native CLI default; no adapter protocol override |
+
+The manifest selects `auto` for **memory-mcp v0.9.0+** and **m365-mcp v0.7.0+**.
+Both releases serve modern and legacy clients. The setting was verified with
+Pi **1.3.0** and pi-mcp-adapter **5.3.1**; upgrade older installations first.
+Use `legacy` when holding a machine on an older release if probe latency is unwanted.
+
+`pi mcp add` cannot express this adapter extension. After successful CLI
+registration, `set-pi-protocol.py` atomically adds just `protocolVersion` to that
+entry in `~/.pi/agent/mcp.json`, preserving other fields and file permissions.
+Missing/malformed registries or entries fail closed without printing their contents.
+Invalid manifest values are rejected before deployment/registration; machine-local
+entries cannot opt into managed protocol changes. Re-running setup re-applies the
+policy rather than silently resetting it. This does not migrate any registry.
+
+After installation, restart Pi and inspect `/mcp`. `pi mcp list` is a separate
+CLI health check. Actual approval-dialog acceptance must be checked interactively
+on throwaway data; sandbox tests cannot prove the host rendered the dialog.
+Removing `protocolVersion` locally is a temporary rollback; set `piProtocolVersion`
+to `legacy` in the manifest for a rollback that survives reinstallation.
+
+Validation (temporary HOME, no real server/auth/write):
+
+```sh
+python3 scripts/test-pi-protocol.py
+python3 scripts/test-mcp-node.py
+python3 scripts/test-deployment.py /path/to/AI-Skills
+bash -n MCP/install-mcp-servers.sh MCP/mcp-node
+shellcheck MCP/install-mcp-servers.sh MCP/mcp-node
+git diff --check
+```
+
 ## Inventory and manual prerequisites
 
 | Name | Model | Hosts | Machine-local registration / prerequisite |
 | --- | --- | --- | --- |
 | `m365-personal-productivity` | Released Git deployment | Desktop, Code, Pi | `~/.local/share/mcp/m365-mcp`; interactive sign-in |
-| `memory` | Released Git deployment | Pi only | `~/.local/share/mcp/memory-mcp`; private data repo and write policy |
+| `memory` | Released Git deployment | Pi, Desktop | `~/.local/share/mcp/memory-mcp`; private data repo and write policy |
 | `confluent` | Machine-local stdio reference | Pi | Entry in `$HOME/.pi/agent/mcp.json`; npm installation and private YAML config |
 | `atlassian` | Machine-local remote reference | Pi | Entry in `$HOME/.pi/agent/mcp.json`; local URL and interactive OAuth |
 | `datadog` | Machine-local adapter remote reference | Pi | Entry in `$HOME/.config/mcp/mcp.json`; local URL and OAuth |
@@ -74,7 +116,9 @@ A fresh machine is not a complete authenticated replica until these manual steps
 2. **Never store a versioned Node path in host config.** `mcp-node` follows nvm's `default` alias,
    then the newest installed version, then `PATH`, avoiding stale `ENOENT` errors. It adds
    `~/.local/bin` and that Node's bin directory to child `PATH` so memory-mcp can find qmd even
-   from GUI hosts. The qmd installer supplies a stable local launcher for custom npm prefixes;
+   from GUI hosts. A server may set `MCP_NODE_MAJOR` to select the newest installed nvm patch
+   of a supported Node major, failing closed if unavailable; M365 selects Node 24 to match
+   its declared engine rather than inheriting a newer global default. The qmd installer supplies a stable local launcher for custom npm prefixes;
    no `MEMORY_QMD_BIN` manifest entry is required (see root README's **Local search (qmd)**).
 3. **Never run a host from a development checkout.** `dir` is deployment-only, detached at a
    release, normally under `~/.local/share/mcp`. A branched checkout or non-Git directory is refused.
@@ -89,6 +133,13 @@ GitHub authorisation. Host-key verification, DNS/network and missing-repository
 failures do not trigger fallback. Existing origins/fetch behaviour are unchanged.
 Both-transport clone failure warns and skips that server; no release/build/host
 registration proceeds for that new deployment.
+
+The launcher sandbox checks major/patch selection, default/stale aliases,
+argument and PATH preservation, and fail-closed errors without launching real
+Node. Deployment tests assert that memory is registered in Desktop and Pi but
+not Code, that its write/remote policy and private repo path are preserved, and
+that M365 selects Node 24 on every configured host. These are configuration
+checks, not proof of live Desktop connectivity or approval-dialog behaviour.
 
 ## Capability gates and machine-local settings
 
@@ -108,7 +159,7 @@ entry: the installer constructs one env block for all selected hosts, replacing 
 `ALLOW_DELETE=false` is explicit; sending/rule gates remain default-off. This is not a per-host
 policy mechanism.
 
-Memory remains **Pi-only**; this lane does not widen its host surface. Its configured write gate
+Memory is registered in **Pi and Claude Desktop**. Its configured write gate
 permits automatic attributed bank claims and authored archive decisions via `memory_record`.
 Core writes still require staged preview and confirmation. Inbound is cited with its source, never
 presented as the owner's view (repo contract §2a / INV-7). Private DailyDriver is provisioned by

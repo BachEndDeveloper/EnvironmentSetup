@@ -287,25 +287,66 @@ def main():
         registrations = json.loads(pi_path.read_text())["mcpServers"]
         assert all(registrations[name] == entry for name, entry in local_before.items())
         assert set(registrations) == {"confluent", "atlassian", "memory", "m365-personal-productivity"}
+        for name in ("memory", "m365-personal-productivity"):
+            assert registrations[name]["protocolVersion"] == "auto"
+        for path in (home / ".claude.json", home / "Library/Application Support/Claude/claude_desktop_config.json"):
+            assert all("protocolVersion" not in e for e in json.loads(path.read_text())["mcpServers"].values())
         assert not (home / ".pi/agent/mcp-adapter.json").exists()
         all_names = list(registrations) + list(json.loads(shared_path.read_text())["mcpServers"])
         assert all(all_names.count(s["name"]) == 1 for s in manifest["servers"])
-        assert json.loads((home / ".claude.json").read_text())["projects"] == {"synthetic": "keep"}
-        print("PASS: six declarations; missing-entry doctor; value-safe checks; MCP repeat is idempotent and preserves local OAuth/restrictions")
+        code = json.loads((home / ".claude.json").read_text())
+        assert code["projects"] == {"synthetic": "keep"}
+        desktop = json.loads((home / "Library/Application Support/Claude/claude_desktop_config.json").read_text())["mcpServers"]
+        # Memory's reviewed host widening changes Desktop only, not Claude Code.
+        assert "memory" not in code["mcpServers"]
+        assert desktop["memory"]["command"] == str(home / ".local/bin/mcp-node")
+        assert desktop["memory"]["args"] == [str(home / ".local/share/mcp/memory-mcp/dist/index.js")]
+        assert desktop["memory"]["env"] == registrations["memory"]["env"]
+        assert desktop["memory"]["env"]["MEMORY_ALLOW_WRITE"] == "true"
+        assert desktop["memory"]["env"]["MEMORY_REMOTE_ALLOWED"] == "private-github"
+        assert desktop["memory"]["env"]["MEMORY_REPO"] == str(home / "source/DailyDriver")
+        for entry in (desktop["m365-personal-productivity"], code["mcpServers"]["m365-personal-productivity"], registrations["m365-personal-productivity"]):
+            assert entry["env"]["MCP_NODE_MAJOR"] == "24"
+        print("PASS: six declarations; memory Desktop registration preserves write/remote policy without adding Code; M365 pins Node 24 on all hosts; local OAuth/restrictions preserved")
 
         output = run(doctor, extra={"M365_TENANT_ID": "synthetic-sensitive-sentinel", "TEST_FAIL_PI_MCP": "1", "TEST_FAIL_CLAUDE_MCP": "1"})
         assert "synthetic-sensitive-sentinel" not in output and "values withheld" in output
         run(doctor)
         print("PASS: failed host registrations do not print machine-local env values")
 
+        # Legacy rollback, pinned revision, omitted default, and invalid policy.
+        memory = next(s for s in manifest["servers"] if s["name"] == "memory")
+        for version in ("legacy", "2026-07-28"):
+            memory["piProtocolVersion"] = version
+            write(manifest_path, manifest)
+            run(doctor)
+            assert json.loads(pi_path.read_text())["mcpServers"]["memory"]["protocolVersion"] == version
+        del memory["piProtocolVersion"]
+        write(manifest_path, manifest)
+        run(doctor)
+        assert "protocolVersion" not in json.loads(pi_path.read_text())["mcpServers"]["memory"]
+        before_calls = len((root / "calls.jsonl").read_text().splitlines())
+        memory["piProtocolVersion"] = "invalid-sensitive-sentinel"
+        write(manifest_path, manifest)
+        output = run(doctor)
+        assert "invalid piProtocolVersion for memory" in output
+        assert "invalid-sensitive-sentinel" not in output
+        calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()[before_calls:]]
+        assert not any(c[0] == "pi" and c[1][:3] == ["mcp", "add", "memory"] for c in calls)
+        memory["piProtocolVersion"] = "auto"
+        write(manifest_path, manifest)
+        run(doctor)
+        print("PASS: Pi protocol auto survives reinstall; legacy/pinned/omitted modes work; invalid values rejected before registration; Claude/local entries unchanged")
+
         # Exercise generic remote support without committing any remote URL value.
-        manifest["servers"].append({"name": "synthetic-remote", "type": "remote", "url": "$TEST_REMOTE_URL", "hosts": ["pi", "claude-code", "claude-desktop"]})
+        manifest["servers"].append({"name": "synthetic-remote", "type": "remote", "url": "$TEST_REMOTE_URL", "piProtocolVersion": "auto", "hosts": ["pi", "claude-code", "claude-desktop"]})
         write(manifest_path, manifest)
         output = run(doctor)
         assert "url reference is unset" in output
         output = run(doctor, extra={"TEST_REMOTE_URL": "https://example.invalid/mcp"})
         assert "https://example.invalid" not in output
-        assert json.loads(pi_path.read_text())["mcpServers"]["synthetic-remote"] == {"url": "https://example.invalid/mcp"}
+        assert json.loads(pi_path.read_text())["mcpServers"]["synthetic-remote"] == {"url": "https://example.invalid/mcp", "protocolVersion": "auto"}
+        assert "protocolVersion" not in json.loads((home / ".claude.json").read_text())["mcpServers"]["synthetic-remote"]
         desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
         assert "synthetic-remote" not in json.loads(desktop.read_text())["mcpServers"]
         manifest["servers"][-1]["url"] = "https://example.invalid/not-a-reference"

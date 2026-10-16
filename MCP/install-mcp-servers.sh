@@ -285,11 +285,9 @@ PY
 			pi_args+=("${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"}" -- "$LAUNCHER" "$ENTRY_PATH")
 		fi
 		if pi "${pi_args[@]}" >/dev/null 2>&1; then
-			# The CLI cannot express the adapter's protocolVersion extension. Patch
-			# only that field after registration; never rebuild the whole registry.
-			if [[ -n "$SRV_PI_PROTOCOL" ]]; then
-				python3 set-pi-protocol.py "$HOME/.pi/agent/mcp.json" "$SRV_NAME" "$SRV_PI_PROTOCOL"
-			fi
+			# Native mcp.json imports DROP adapter-only protocolVersion. Store only
+			# the override in mcp-adapter.json; omitted policy removes stale overrides.
+			python3 set-pi-protocol.py "$HOME/.pi/agent/mcp.json" "$HOME/.pi/agent/mcp-adapter.json" "$SRV_NAME" "$SRV_PI_PROTOCOL"
 			echo "  Pi: $SRV_NAME registered via 'pi mcp add'"
 		else
 			echo "WARNING: 'pi mcp add' failed for $SRV_NAME - add it manually:" >&2

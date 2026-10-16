@@ -22,7 +22,7 @@ whether the built-in extension is enabled. The native CLI still writes `mcp.json
 built-in runtime does not disable its registration command. Adapter overrides can also live in
 `~/.pi/agent/mcp-adapter.json`, and project/`.agents` configs may override global entries.
 
-The installer keeps **m365 and memory in the proven `~/.pi/agent/mcp.json` path**. It does not
+The installer keeps **m365 and memory transport registrations in `~/.pi/agent/mcp.json`**. It does not
 move them to the adapter override file, migrate the four local references, or rewrite their OAuth
 and restriction fields. Keep each name unique across discovered registries; an override can
 shadow a managed entry. Older adapters/Pi versions with different discovery are not supported by
@@ -46,19 +46,29 @@ Both releases serve modern and legacy clients. The setting was verified with
 Pi **1.3.0** and pi-mcp-adapter **5.3.1**; upgrade older installations first.
 Use `legacy` when holding a machine on an older release if probe latency is unwanted.
 
-`pi mcp add` cannot express this adapter extension. After successful CLI
-registration, `set-pi-protocol.py` atomically adds just `protocolVersion` to that
-entry in `~/.pi/agent/mcp.json`, preserving other fields and file permissions.
-Missing/malformed registries or entries fail closed without printing their contents.
+Pi's native `mcp.json` importer **drops `protocolVersion`**, even though the
+adapter supports it in its own configuration (verified with adapter 5.3.1).
+After successful CLI registration, `set-pi-protocol.py` stores a partial override
+such as `{"mcpServers":{"memory":{"protocolVersion":"auto"}}}` in
+`~/.pi/agent/mcp-adapter.json`. The adapter merges it with the command/args/env
+from native `mcp.json`; no credentials or transport settings are duplicated.
+The helper removes the old ignored field from the managed native entry. It
+preserves unrelated entries/settings and existing permissions, creates new override
+files with mode 0600, and replaces each changed file atomically. Both documents
+are validated before writing; malformed configuration fails without printing values.
+Writes across the two files are not one transaction; a failure aborts installation
+and re-running safely reconciles them.
 Invalid manifest values are rejected before deployment/registration; machine-local
 entries cannot opt into managed protocol changes. Re-running setup re-applies the
-policy rather than silently resetting it. This does not migrate any registry.
+policy. Omitting `piProtocolVersion` removes only the managed protocol override,
+retaining any other adapter fields.
 
 After installation, restart Pi and inspect `/mcp`. `pi mcp list` is a separate
 CLI health check. Actual approval-dialog acceptance must be checked interactively
 on throwaway data; sandbox tests cannot prove the host rendered the dialog.
-Removing `protocolVersion` locally is a temporary rollback; set `piProtocolVersion`
-to `legacy` in the manifest for a rollback that survives reinstallation.
+Set `protocolVersion` to `legacy` in the adapter override for a temporary
+rollback; set `piProtocolVersion` to `legacy` in the manifest for a rollback
+that survives reinstallation. Restart Pi after changing the effective policy.
 
 Validation (temporary HOME, no real server/auth/write):
 
@@ -66,6 +76,8 @@ Validation (temporary HOME, no real server/auth/write):
 python3 scripts/test-pi-protocol.py
 python3 scripts/test-mcp-node.py
 python3 scripts/test-deployment.py /path/to/AI-Skills
+# Opt-in integration against the actual installed adapter; temporary HOME, no servers:
+node scripts/test-pi-adapter-protocol.mjs ~/.pi/agent/npm/node_modules/pi-mcp-adapter/dist/config.js
 bash -n MCP/install-mcp-servers.sh MCP/mcp-node
 shellcheck MCP/install-mcp-servers.sh MCP/mcp-node
 git diff --check

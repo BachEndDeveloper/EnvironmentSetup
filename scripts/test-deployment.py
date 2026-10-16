@@ -287,11 +287,13 @@ def main():
         registrations = json.loads(pi_path.read_text())["mcpServers"]
         assert all(registrations[name] == entry for name, entry in local_before.items())
         assert set(registrations) == {"confluent", "atlassian", "memory", "m365-personal-productivity"}
+        adapter_path = home / ".pi/agent/mcp-adapter.json"
+        overrides = json.loads(adapter_path.read_text())["mcpServers"]
         for name in ("memory", "m365-personal-productivity"):
-            assert registrations[name]["protocolVersion"] == "auto"
+            assert "protocolVersion" not in registrations[name]
+            assert overrides[name] == {"protocolVersion": "auto"}
         for path in (home / ".claude.json", home / "Library/Application Support/Claude/claude_desktop_config.json"):
             assert all("protocolVersion" not in e for e in json.loads(path.read_text())["mcpServers"].values())
-        assert not (home / ".pi/agent/mcp-adapter.json").exists()
         all_names = list(registrations) + list(json.loads(shared_path.read_text())["mcpServers"])
         assert all(all_names.count(s["name"]) == 1 for s in manifest["servers"])
         code = json.loads((home / ".claude.json").read_text())
@@ -320,11 +322,13 @@ def main():
             memory["piProtocolVersion"] = version
             write(manifest_path, manifest)
             run(doctor)
-            assert json.loads(pi_path.read_text())["mcpServers"]["memory"]["protocolVersion"] == version
+            assert json.loads(adapter_path.read_text())["mcpServers"]["memory"] == {"protocolVersion": version}
+            assert "protocolVersion" not in json.loads(pi_path.read_text())["mcpServers"]["memory"]
         del memory["piProtocolVersion"]
         write(manifest_path, manifest)
         run(doctor)
         assert "protocolVersion" not in json.loads(pi_path.read_text())["mcpServers"]["memory"]
+        assert "memory" not in json.loads(adapter_path.read_text())["mcpServers"]
         before_calls = len((root / "calls.jsonl").read_text().splitlines())
         memory["piProtocolVersion"] = "invalid-sensitive-sentinel"
         write(manifest_path, manifest)
@@ -345,7 +349,8 @@ def main():
         assert "url reference is unset" in output
         output = run(doctor, extra={"TEST_REMOTE_URL": "https://example.invalid/mcp"})
         assert "https://example.invalid" not in output
-        assert json.loads(pi_path.read_text())["mcpServers"]["synthetic-remote"] == {"url": "https://example.invalid/mcp", "protocolVersion": "auto"}
+        assert json.loads(pi_path.read_text())["mcpServers"]["synthetic-remote"] == {"url": "https://example.invalid/mcp"}
+        assert json.loads(adapter_path.read_text())["mcpServers"]["synthetic-remote"] == {"protocolVersion": "auto"}
         assert "protocolVersion" not in json.loads((home / ".claude.json").read_text())["mcpServers"]["synthetic-remote"]
         desktop = home / "Library/Application Support/Claude/claude_desktop_config.json"
         assert "synthetic-remote" not in json.loads(desktop.read_text())["mcpServers"]

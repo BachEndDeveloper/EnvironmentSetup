@@ -4,9 +4,8 @@ Backup of my Claude Code (`~/.claude`) customizations so they can be restored af
 
 ## Files
 
-- `settings.json` — my Claude Code config: model (`opus[1m]`), `effortLevel`, the
-  `dotnet-agent-skills` plugin marketplace, the plugins enabled from it, and an experimental
-  feature flag in `env`. Contains **no secrets** and **no machine-specific paths**.
+- `settings.json` — my Claude Code config: model (`opus[1m]`), `effortLevel`, the enabled
+  official plugins, and an experimental feature flag in `env`. Contains **no secrets** and **no machine-specific paths**.
 
 ## What the Mac setup script does
 
@@ -16,20 +15,18 @@ declared marketplace and plugins itself on next launch — the same pattern as P
 
 ## Skills and plugins come from upstream, not from here
 
-Nothing in this folder vendors skill or plugin *content*. Three separate sources feed Claude Code,
+Nothing in this folder vendors skill or plugin *content*. Two separate sources feed Claude Code,
 and each is owned elsewhere:
 
 | Source | Reaches Claude Code via | Also used by |
 | --- | --- | --- |
-| [`dotnet/skills`](https://github.com/dotnet/skills) | the `dotnet-agent-skills` marketplace declared in `settings.json` (Claude Code clones it into `~/.claude/plugins/marketplaces/`) | **Pi** — the setup script clones the *same repo* to `~/pi-skills/dotnet-skills` |
 | Supacode | Supacode installs its own skills and its surface-tracking hooks when it is installed (Homebrew cask, root `Brewfile`) | — |
 | [AI-Skills](https://github.com/BachEndDeveloper/AI-Skills) (private) | `scripts/install-local.sh`, run by the setup script | Pi |
 
-Two consequences worth remembering:
+The `dotnet/skills` plugin marketplace was dropped on 2026-11-11 to avoid skill bloat.
 
-- **`dotnet/skills` is cloned twice on this machine**, once by the setup script for Pi and once by
-  Claude Code for the marketplace. They are independent copies at independent commits. That is
-  expected, not a bug — but if you change how one is pinned, the other does not follow.
+Worth remembering:
+
 - **Supacode's hooks are deliberately not vendored here.** The live `~/.claude/settings.json` has
   eight `SUPACODE_SURFACE_ID` hooks that Supacode writes itself. Copying them into this repo would
   fight with Supacode on every launch.
@@ -53,8 +50,7 @@ paths — Claude Code runs a `command` hook in *shell form* when the entry has n
 ## Manual steps to finish the restore
 
 1. **Install Claude Code**, then run the Mac setup script (copies the file above).
-2. **Launch Claude Code once** so it fetches the `dotnet-agent-skills` marketplace and installs the
-   enabled plugins. Verify with `/plugin`.
+2. **Launch Claude Code once** so it installs the enabled plugins. Verify with `/plugin`.
 
 ## Not captured here, on purpose
 

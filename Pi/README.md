@@ -13,10 +13,9 @@ Backup of the non-secret [Pi](https://pi.dev) configuration restored on a new ma
 1. It backs up existing `~/.pi/agent/settings.json` and `models.json`.
 2. It copies this directory's `settings.json`, `models.json`, and local extensions into `~/.pi/agent/`.
 3. After restoring settings, it deploys AI-Skills to `~/.local/share/ai-skills` at its newest stable release tag, registers that copy as a Pi package and removes the old `../../source/AI-Skills` entry via Pi's CLI. That deployment is the sole source for repository-managed skills; the development checkout stays untouched.
-4. It clones the upstream dotnet and Aspire skills repositories into `~/pi-skills/`, because this configuration references both paths.
-5. It provisions the managed MCP deployments in [`../MCP/servers.json`](../MCP/servers.json), registers them through `pi mcp add` in `~/.pi/agent/mcp.json`, and checks four additional machine-local registrations. Pi uses **pi-mcp-adapter**, declared in `settings.json`, with `-builtin:mcp` disabling the built-in runtime. The adapter reads that registry and `~/.config/mcp/mcp.json`; Code/Desktop registration follows each server's host list. No machine-local OAuth/restriction values are rewritten.
+4. It provisions the managed MCP deployments in [`../MCP/servers.json`](../MCP/servers.json), registers them through `pi mcp add` in `~/.pi/agent/mcp.json`, and checks four additional machine-local registrations. Pi uses **pi-mcp-adapter**, declared in `settings.json`, with `-builtin:mcp` disabling the built-in runtime. The adapter reads that registry and `~/.config/mcp/mcp.json`; Code/Desktop registration follows each server's host list. No machine-local OAuth/restriction values are rewritten.
 
-No skill directory is copied from this repository into `~/.agents/skills` or `~/.pi/agent/skills`.
+No skill directory is copied from this repository into `~/.agents/skills` or `~/.pi/agent/skills`. The upstream `dotnet/skills` and `microsoft/aspire-skills` collections were dropped on 2026-11-11 to avoid skill bloat; clone them again manually if needed.
 
 ## After setup
 

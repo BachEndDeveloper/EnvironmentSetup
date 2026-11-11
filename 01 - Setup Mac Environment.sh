@@ -200,18 +200,6 @@ else
 	echo "WARNING: AI-Skills bootstrap failed - check your GitHub access/release and re-run (see RELEASES.md)." >&2
 fi
 
-# External skills referenced by Pi settings.json. Keep upstream-managed skills out of the
-# shared snapshot so their repositories can evolve independently.
-PI_SKILLS_DIR="$HOME/pi-skills"
-if [ ! -d "$PI_SKILLS_DIR/dotnet-skills" ]; then
-	mkdir -p "$PI_SKILLS_DIR"
-	git clone https://github.com/dotnet/skills.git "$PI_SKILLS_DIR/dotnet-skills" || echo "WARNING: failed to clone dotnet/skills." >&2
-fi
-if [ ! -d "$PI_SKILLS_DIR/aspire-skills" ]; then
-	mkdir -p "$PI_SKILLS_DIR"
-	git clone https://github.com/microsoft/aspire-skills.git "$PI_SKILLS_DIR/aspire-skills" || echo "WARNING: failed to clone microsoft/aspire-skills." >&2
-fi
-
 # DailyDriver: the private data repository behind the memory MCP server. Its content never lives
 # in this (public) repository; only the clone and the memory-mcp settings file are set up here.
 # See memory-mcp docs/operations.md, section 5.1. Runs before the MCP installer so the `memory`

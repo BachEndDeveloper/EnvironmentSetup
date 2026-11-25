@@ -130,7 +130,9 @@ A fresh machine is not a complete authenticated replica until these manual steps
    `~/.local/bin` and that Node's bin directory to child `PATH` so memory-mcp can find qmd even
    from GUI hosts. A server may set `MCP_NODE_MAJOR` to select the newest installed nvm patch
    of a supported Node major, failing closed if unavailable; M365 selects Node 24 to match
-   its declared engine rather than inheriting a newer global default. The qmd installer supplies a stable local launcher for custom npm prefixes;
+   its declared engine rather than inheriting a newer global default. Hosts configured outside
+   this installer (Codex) use `~/.local/bin/m365-mcp-node`, a wrapper that runs `mcp-node`
+   with `MCP_NODE_MAJOR=24`; the installer keeps it current. The qmd installer supplies a stable local launcher for custom npm prefixes;
    no `MEMORY_QMD_BIN` manifest entry is required (see root README's **Local search (qmd)**).
 3. **Never run a host from a development checkout.** `dir` is deployment-only, detached at a
    release, normally under `~/.local/share/mcp`. A branched checkout or non-Git directory is refused.

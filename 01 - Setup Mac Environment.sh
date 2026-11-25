@@ -75,8 +75,8 @@ command -v nvm >/dev/null 2>&1 || {
 nvm install --lts
 nvm alias default 'lts/*'
 
-# nvm-update-lts: updates Node to the latest LTS, carries global npm packages over and
-# repoints `default`. Copied (not symlinked) from the repo so the installed tool is a plain
+# nvm-update-lts: updates Node to the latest LTS, carries global npm packages over (and
+# corepack, which Node 25+ no longer bundles) and repoints `default`. Copied (not symlinked) from the repo so the installed tool is a plain
 # file; re-run this script to pick up changes.
 mkdir -p "$HOME/.local/bin"
 install -m 755 scripts/nvm-update-lts "$HOME/.local/bin/nvm-update-lts"

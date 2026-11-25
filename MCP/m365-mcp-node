@@ -1,0 +1,6 @@
+#!/bin/sh
+# Node launcher for the M365 MCP server in hosts that cannot set per-server env
+# through our installer (Codex: ~/.codex/config.toml points `command` here).
+# m365-mcp declares engines "^24", so pin the major, never a patch: mcp-node
+# picks the newest installed nvm v24.x and fails closed if none is installed.
+MCP_NODE_MAJOR=24 exec "$HOME/.local/bin/mcp-node" "$@"

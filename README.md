@@ -386,7 +386,10 @@ The macOS script installs and configures these automatically:
   (`nvm install --lts`). Install a Current release on demand with `nvm install node`.
   Update Node later with `nvm-update-lts` (`scripts/nvm-update-lts`, installed to `~/.local/bin` by the
   setup script): installs the newest LTS, carries global npm packages over and points `default` at
-  `lts/*`. Supports `--dry-run`; see `--help`.
+  `lts/*`. Supports `--dry-run`; see `--help`. It also restores corepack (the `pnpm`/`yarn` shims),
+  which Node 25+ no longer bundles. After an update: re-run `bash scripts/install-qmd.sh --no-embed`
+  under the new Node to repoint the qmd launcher, keep one Node 24 install for M365 MCP (engine
+  `^24`; `nvm install lts/krypton`), then `nvm uninstall` the old versions.
 - **Python** — managed by [uv](https://docs.astral.sh/uv/) (installed as a Homebrew formula).
   `uv python install` provides the latest stable CPython. Pin per project with a `.python-version`
   file or `requires-python`; `uv run` / `uv sync` auto-download the matching version. uv replaces

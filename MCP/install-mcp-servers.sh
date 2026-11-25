@@ -52,6 +52,13 @@ if ! cmp -s mcp-node "$LAUNCHER" 2>/dev/null; then
 	chmod 755 "$LAUNCHER"
 	echo "Installed launcher: $LAUNCHER"
 fi
+# Node 24 launcher for M365 in hosts configured outside this installer (Codex).
+M365_LAUNCHER="$(dirname "$LAUNCHER")/m365-mcp-node"
+if ! cmp -s m365-mcp-node "$M365_LAUNCHER" 2>/dev/null; then
+	cp m365-mcp-node "$M365_LAUNCHER"
+	chmod 755 "$M365_LAUNCHER"
+	echo "Installed launcher: $M365_LAUNCHER"
+fi
 echo "Hosts will launch servers via: $LAUNCHER"
 
 # Pi keeps the adapter, which discovers Pi's global mcp.json on Pi 0.99+.

@@ -162,6 +162,21 @@ else
   run nvm use "$TARGET" >/dev/null
 fi
 
+# --- corepack (pnpm/yarn shims) --------------------------------------------
+# Node 25+ no longer bundles corepack, and reinstall-packages skips it because it
+# was part of the old Node, not an npm global. Restore it if the source had it.
+if [ -n "$FROM" ] && [ -e "$NVM_DIR/versions/node/$FROM/lib/node_modules/corepack" ] \
+   && [ ! -e "$NVM_DIR/versions/node/$TARGET/lib/node_modules/corepack" ]; then
+  info "Installing corepack ($TARGET no longer bundles it)"
+  run nvm exec --silent "$TARGET" npm install -g corepack \
+    || warn "corepack install failed — pnpm/yarn will be missing"
+fi
+if [ -e "$NVM_DIR/versions/node/$TARGET/lib/node_modules/corepack" ] \
+   && [ ! -e "$NVM_DIR/versions/node/$TARGET/bin/pnpm" ]; then
+  info "corepack enable (pnpm/yarn shims)"
+  run nvm exec --silent "$TARGET" corepack enable || warn "corepack enable failed"
+fi
+
 # --- make it the default ---------------------------------------------------
 if [ "$SET_DEFAULT" = 1 ]; then
   info "Setting default alias → $DEFAULT_ALIAS"

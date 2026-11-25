@@ -309,7 +309,10 @@ def main():
         assert desktop["memory"]["env"]["MEMORY_REPO"] == str(home / "source/DailyDriver")
         for entry in (desktop["m365-personal-productivity"], code["mcpServers"]["m365-personal-productivity"], registrations["m365-personal-productivity"]):
             assert entry["env"]["MCP_NODE_MAJOR"] == "24"
-        print("PASS: six declarations; memory Desktop registration preserves write/remote policy without adding Code; M365 pins Node 24 on all hosts; local OAuth/restrictions preserved")
+        m365_launcher = home / ".local/bin/m365-mcp-node"
+        assert m365_launcher.read_bytes() == (setup / "MCP/m365-mcp-node").read_bytes()
+        assert m365_launcher.stat().st_mode & 0o111, "m365-mcp-node launcher is not executable"
+        print("PASS: six declarations; memory Desktop registration preserves write/remote policy without adding Code; M365 pins Node 24 on all hosts; m365-mcp-node launcher installed; local OAuth/restrictions preserved")
 
         output = run(doctor, extra={"M365_TENANT_ID": "synthetic-sensitive-sentinel", "TEST_FAIL_PI_MCP": "1", "TEST_FAIL_CLAUDE_MCP": "1"})
         assert "synthetic-sensitive-sentinel" not in output and "values withheld" in output
